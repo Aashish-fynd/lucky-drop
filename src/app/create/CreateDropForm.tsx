@@ -26,6 +26,7 @@ const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
   image: z.string().url('Must be a valid image URL.').min(1, 'Image URL is required.'),
   platform: z.string().optional(),
+  url: z.string().url('A valid product URL is required.').optional(),
 });
 
 const gifterMediaSchema = z.object({
@@ -133,7 +134,7 @@ export function CreateDropForm() {
     defaultValues: {
       title: '',
       message: '',
-      gifts: [{ name: '', image: 'https://placehold.co/600x400.png', platform: '' }],
+      gifts: [],
       distributionMode: 'random',
     },
   });
@@ -155,7 +156,7 @@ export function CreateDropForm() {
             const { gifts } = await generateGiftIdeasAction({ prompt: aiPrompt });
             if (gifts && gifts.length > 0) {
                 // `replace` will swap out the entire array with the new one
-                replace(gifts);
+                replace(gifts.map(g => ({...g, image: g.image || 'https://placehold.co/600x400.png'})));
                 toast({ title: "Gifts Generated!", description: "AI has suggested some gifts for you." });
             } else {
                  toast({ title: "No gifts generated", description: "AI couldn't find any gifts. Try a different prompt.", variant: "destructive" });
@@ -203,6 +204,32 @@ export function CreateDropForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> AI Gift Suggestions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <Alert>
+                <Sparkles className="h-4 w-4" />
+                <AlertTitle>How it works</AlertTitle>
+                <AlertDescription>
+                   Describe the person you're giving a gift to, and our AI will suggest some real gift ideas from popular online stores.
+                </AlertDescription>
+            </Alert>
+             <Textarea 
+                placeholder="e.g., My friend loves hiking, reading fantasy novels, and is a big fan of spicy food..."
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                rows={4}
+             />
+             <Button type="button" onClick={handleGenerateGifts} disabled={isAiLoading} className="w-full">
+                {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Gift Ideas
+             </Button>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><Info className="text-primary"/> Drop Details</CardTitle>
@@ -278,33 +305,8 @@ export function CreateDropForm() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> AI Gift Suggestions</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-             <Alert>
-                <Sparkles className="h-4 w-4" />
-                <AlertTitle>How it works</AlertTitle>
-                <AlertDescription>
-                   Describe the person you're giving a gift to, and our AI will suggest some ideas.
-                </AlertDescription>
-            </Alert>
-             <Textarea 
-                placeholder="e.g., My friend loves hiking, reading fantasy novels, and is a big fan of spicy food..."
-                value={aiPrompt}
-                onChange={(e) => setAiPrompt(e.target.value)}
-                rows={4}
-             />
-             <Button type="button" onClick={handleGenerateGifts} disabled={isAiLoading} className="w-full">
-                {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Generate Gift Ideas
-             </Button>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
             <CardTitle className="flex items-center gap-2"><Gift className="text-primary"/> Gift Options</CardTitle>
-            <FormDescription className="ml-8 -mt-1">Add or edit the AI-generated gifts below.</FormDescription>
+            <FormDescription className="ml-8 -mt-1">Add or edit the AI-generated gifts below, or add your own.</FormDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {fields.map((field, index) => (
@@ -324,12 +326,12 @@ export function CreateDropForm() {
                             </FormItem>
                         )}
                         />
-                        <FormField
+                         <FormField
                         control={form.control}
-                        name={`gifts.${index}.image`}
+                        name={`gifts.${index}.url`}
                         render={({ field }) => (
                             <FormItem>
-                            <FormLabel>Image URL</FormLabel>
+                            <FormLabel>Product URL</FormLabel>
                             <FormControl>
                                 <Input placeholder="https://..." {...field} />
                             </FormControl>
@@ -353,6 +355,19 @@ export function CreateDropForm() {
                     </div>
                     <div className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 relative">
                         <Image src={watchedGifts?.[index]?.image || 'https://placehold.co/400.png'} alt={`Preview for gift ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md border bg-muted" data-ai-hint="gift present" />
+                         <FormField
+                            control={form.control}
+                            name={`gifts.${index}.image`}
+                            render={({ field }) => (
+                                <FormItem className='hidden'>
+                                <FormLabel>Image URL</FormLabel>
+                                <FormControl>
+                                    <Input {...field} />
+                                </FormControl>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
                     </div>
                  </div>
 
@@ -370,13 +385,13 @@ export function CreateDropForm() {
                 className="w-full"
                 onClick={() => append({ name: '', image: 'https://placehold.co/600x400.png', platform: '' })}
               >
-                <PlusCircle className="mr-2 h-4 w-4" /> Add Gift
+                <PlusCircle className="mr-2 h-4 w-4" /> Add Gift Manually
               </Button>
             )}
              <FormField
                 control={form.control}
                 name="gifts"
-                render={() => <FormMessage />}
+                render={({field}) => <FormMessage className={field.value && field.value.length > 0 ? 'hidden': ''} />}
             />
           </CardContent>
         </Card>

@@ -3,6 +3,7 @@ export interface Gift {
   name: string;
   image: string;
   platform?: string;
+  url?: string;
 }
 
 export type DistributionMode = 'random' | 'manual';
