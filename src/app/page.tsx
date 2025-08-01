@@ -1,10 +1,29 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Gift, Share2 } from "lucide-react";
+import { Gift, PackageCheck, SendHorizontal } from "lucide-react";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 
 export default function Home() {
+  const howItWorksSteps = [
+    {
+      icon: <Gift className="h-8 w-8 text-primary" />,
+      title: "1. Create Your Drop",
+      description: "Easily assemble a collection of potential gifts, add a personal message, and decide how the gift is chosen."
+    },
+    {
+      icon: <SendHorizontal className="h-8 w-8 text-primary" />,
+      title: "2. Share the Link",
+      description: "We'll generate a unique, shareable link for your gift drop. Send it to your recipient and wait for the magic to happen."
+    },
+    {
+      icon: <PackageCheck className="h-8 w-8 text-primary" />,
+      title: "3. They Reveal the Gift",
+      description: "Your recipient opens the link to an animated surprise, revealing the gift chosen for them by you or our smart AI."
+    },
+  ]
+
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
       <Header />
@@ -30,50 +49,27 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="w-full py-12 md:py-24 lg:py-32">
+        <section className="w-full py-12 md:py-24 lg:py-32 bg-primary/5">
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
-              <div className="space-y-2">
-                <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">How It Works</h2>
-                <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                  Three simple steps to spread joy.
-                </p>
-              </div>
+              <Badge variant="outline" className="bg-background">How It Works</Badge>
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl font-headline">A Simple Path to a Perfect Surprise</h2>
+              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+                Follow these three easy steps to send a gift that will be remembered.
+              </p>
             </div>
-            <div className="mx-auto max-w-2xl mt-12 grid gap-8">
-              <div className="flex items-start gap-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xl flex-shrink-0">
-                  1
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold font-headline">Create a Drop</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Set a title for your surprise, and add a few gift options. Choose whether the recipient picks or gets a random surprise.
+            <div className="mx-auto grid max-w-5xl items-start gap-12 sm:grid-cols-2 md:grid-cols-3 lg:gap-16 mt-16">
+              {howItWorksSteps.map((step, index) => (
+                <div key={index} className="flex flex-col items-center text-center gap-4">
+                  <div className="flex items-center justify-center bg-primary/10 rounded-full h-20 w-20 mb-4">
+                    {step.icon}
+                  </div>
+                  <h3 className="text-xl font-bold font-headline">{step.title}</h3>
+                  <p className="text-muted-foreground">
+                    {step.description}
                   </p>
                 </div>
-              </div>
-              <div className="flex items-start gap-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xl flex-shrink-0">
-                  2
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold font-headline">Share the Link</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    We'll generate a unique link and QR code for you to send. It's your secret key to the surprise.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-start gap-6">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary font-bold text-xl flex-shrink-0">
-                  3
-                </div>
-                <div>
-                  <h3 className="text-xl font-bold font-headline">Reveal the Gift</h3>
-                  <p className="mt-2 text-muted-foreground">
-                    Your friend opens the link, reveals their gift, and can even send back an AI-generated thank you note!
-                  </p>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         </section>
