@@ -16,6 +16,18 @@ const nextConfig: NextConfig = {
         port: '',
         pathname: '/**',
       },
+       {
+        protocol: 'https',
+        hostname: 'm.media-amazon.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.ebayimg.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.etsystatic.com',
+      }
     ],
   },
 };

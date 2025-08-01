@@ -24,9 +24,9 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
-  image: z.string().url('Must be a valid image URL.').min(1, 'Image URL is required.'),
+  image: z.string().min(1, 'Image URL is required.'),
   platform: z.string().optional(),
-  url: z.string().url('A valid product URL is required.').optional(),
+  url: z.string().optional(),
 });
 
 const gifterMediaSchema = z.object({
@@ -163,7 +163,7 @@ export function CreateDropForm() {
             }
         } catch (error) {
             console.error("AI Error:", error);
-            toast({ title: "AI Error", description: error?.message || "Failed to generate gift ideas.", variant: "destructive" });
+            toast({ title: "AI Error", description: (error as Error)?.message || "Failed to generate gift ideas.", variant: "destructive" });
         }
     });
   }
@@ -383,7 +383,7 @@ export function CreateDropForm() {
                 type="button"
                 variant="outline"
                 className="w-full"
-                onClick={() => append({ name: '', image: 'https://placehold.co/600x400.png', platform: '' })}
+                onClick={() => append({ name: '', image: 'https://placehold.co/600x400.png', platform: '', url: '' })}
               >
                 <PlusCircle className="mr-2 h-4 w-4" /> Add Gift Manually
               </Button>
