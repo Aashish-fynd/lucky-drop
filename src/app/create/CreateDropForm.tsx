@@ -12,7 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon, UploadCloud, Sparkles } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon, UploadCloud, Sparkles, ExternalLink, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
@@ -21,6 +21,10 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/
 import { Progress } from '@/components/ui/progress';
 import { generateGiftIdeasAction } from '@/actions/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter, DialogClose } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { GenerateGiftIdeasOutput } from '@/ai/flows/generate-gift-ideas';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
@@ -45,6 +49,7 @@ const formSchema = z.object({
 });
 
 type CreateDropFormValues = z.infer<typeof formSchema>;
+type AiSuggestions = GenerateGiftIdeasOutput['gifts'];
 
 function FileUploader({ onUploadComplete, acceptedFileTypes, mediaType }: { onUploadComplete: (url: string) => void; acceptedFileTypes: string; mediaType: 'image' | 'audio' | 'video' }) {
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -128,6 +133,8 @@ export function CreateDropForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [isAiLoading, startAiTransition] = useTransition();
   const [aiPrompt, setAiPrompt] = useState('');
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions | null>(null);
+  const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
 
   const form = useForm<CreateDropFormValues>({
     resolver: zodResolver(formSchema),
@@ -139,7 +146,7 @@ export function CreateDropForm() {
     },
   });
 
-  const { fields, append, remove, replace } = useFieldArray({
+  const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'gifts',
   });
@@ -155,9 +162,8 @@ export function CreateDropForm() {
         try {
             const { gifts } = await generateGiftIdeasAction({ prompt: aiPrompt });
             if (gifts && gifts.length > 0) {
-                // `replace` will swap out the entire array with the new one
-                replace(gifts.map(g => ({...g, image: g.image || 'https://placehold.co/600x400.png'})));
-                toast({ title: "Gifts Generated!", description: "AI has suggested some gifts for you." });
+                setAiSuggestions(gifts);
+                setSelectedSuggestions(new Set());
             } else {
                  toast({ title: "No gifts generated", description: "AI couldn't find any gifts. Try a different prompt.", variant: "destructive" });
             }
@@ -166,6 +172,36 @@ export function CreateDropForm() {
             toast({ title: "AI Error", description: (error as Error)?.message || "Failed to generate gift ideas.", variant: "destructive" });
         }
     });
+  }
+
+  const handleSuggestionToggle = (index: number) => {
+    const newSelection = new Set(selectedSuggestions);
+    if (newSelection.has(index)) {
+      newSelection.delete(index);
+    } else {
+      newSelection.add(index);
+    }
+    setSelectedSuggestions(newSelection);
+  };
+  
+  const handleAddSelectedGifts = () => {
+    if (!aiSuggestions) return;
+    
+    const giftsToAdd = aiSuggestions.filter((_, index) => selectedSuggestions.has(index));
+
+    if (fields.length + giftsToAdd.length > 5) {
+      toast({
+        title: "Too many gifts",
+        description: "You can add a maximum of 5 gifts to a drop.",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    giftsToAdd.forEach(g => append({ ...g, image: g.image || 'https://placehold.co/600x400.png' }));
+    toast({ title: "Gifts Added!", description: `${giftsToAdd.length} gifts have been added to your drop.`});
+    setAiSuggestions(null);
+    setSelectedSuggestions(new Set());
   }
 
   async function onSubmit(data: CreateDropFormValues) {
@@ -229,6 +265,59 @@ export function CreateDropForm() {
              </Button>
           </CardContent>
         </Card>
+
+        {aiSuggestions && (
+            <Dialog open={!!aiSuggestions} onOpenChange={(open) => !open && setAiSuggestions(null)}>
+                <DialogContent className="max-w-3xl">
+                    <DialogHeader>
+                    <DialogTitle>AI-Generated Gift Ideas</DialogTitle>
+                    <DialogDescription>
+                        Here are a few ideas based on your prompt. Select the ones you like and add them to your drop.
+                    </DialogDescription>
+                    </DialogHeader>
+                    <ScrollArea className="h-[50vh] pr-6">
+                        <div className="space-y-4">
+                            {aiSuggestions.map((gift, index) => (
+                                <div key={index} className='flex items-center gap-4 p-4 border rounded-lg'>
+                                    <div className='relative w-24 h-24 flex-shrink-0'>
+                                        <Image src={gift.image || 'https://placehold.co/400.png'} alt={gift.name} layout="fill" objectFit="cover" className="rounded-md" unoptimized/>
+                                    </div>
+                                    <div className="flex-grow">
+                                        <h4 className='font-semibold'>{gift.name}</h4>
+                                        <p className="text-sm text-muted-foreground">{gift.platform}</p>
+                                        {gift.url && (
+                                            <a href={gift.url} target='_blank' rel='noopener noreferrer' className='text-sm text-primary hover:underline flex items-center gap-1 mt-1'>
+                                                View Product <ExternalLink className='h-3 w-3'/>
+                                            </a>
+                                        )}
+                                    </div>
+                                    <Checkbox
+                                        checked={selectedSuggestions.has(index)}
+                                        onCheckedChange={() => handleSuggestionToggle(index)}
+                                        id={`suggestion-${index}`}
+                                        className="h-6 w-6"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </ScrollArea>
+                    <DialogFooter className='sm:justify-between flex-col-reverse sm:flex-row gap-2'>
+                        <p className="text-sm text-muted-foreground">{selectedSuggestions.size} selected</p>
+                        <div className="flex gap-2">
+                             <DialogClose asChild>
+                                <Button type="button" variant="outline">
+                                Cancel
+                                </Button>
+                            </DialogClose>
+                            <Button type="button" onClick={handleAddSelectedGifts} disabled={selectedSuggestions.size === 0}>
+                                <PlusCircle className="mr-2" />
+                                Add Selected ({selectedSuggestions.size})
+                            </Button>
+                        </div>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+        )}
 
         <Card>
           <CardHeader>
