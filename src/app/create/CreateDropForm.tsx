@@ -162,7 +162,7 @@ export function CreateDropForm() {
             }
         } catch (error) {
             console.error("AI Error:", error);
-            toast({ title: "AI Error", description: "Failed to generate gift ideas.", variant: "destructive" });
+            toast({ title: "AI Error", description: error?.message || "Failed to generate gift ideas.", variant: "destructive" });
         }
     });
   }

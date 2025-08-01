@@ -18,7 +18,7 @@ export type GenerateGiftIdeasInput = z.infer<typeof GenerateGiftIdeasInputSchema
 
 const GiftSuggestionSchema = z.object({
   name: z.string().describe('The name of the suggested gift.'),
-  image: z.string().url().describe('A placeholder image URL for the gift (e.g., from placehold.co).'),
+  image: z.string().describe('A placeholder image URL for the gift (e.g., from placehold.co).'),
   platform: z.string().describe('The online platform where the gift can be found (e.g., Amazon, Etsy).'),
 });
 
