@@ -19,6 +19,7 @@ export interface RecipientDetails {
 
 export interface GiftDrop {
   id: string;
+  userId: string;
   title: string;
   message: string;
   gifts: Gift[];
@@ -27,4 +28,6 @@ export interface GiftDrop {
   selectedGiftId?: string;
   recipientDetails?: RecipientDetails;
   createdAt: number;
+  status: 'draft' | 'live';
+  recipientOpenedAt?: number;
 }

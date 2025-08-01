@@ -14,7 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
 import { Loader2, Trash2, PlusCircle, Gift, Info, Send } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { DistributionMode } from '@/lib/types';
+import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 
 const giftSchema = z.object({
@@ -37,6 +37,7 @@ type CreateDropFormValues = z.infer<typeof formSchema>;
 export function CreateDropForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<CreateDropFormValues>({
@@ -57,9 +58,18 @@ export function CreateDropForm() {
   const watchedGifts = form.watch('gifts');
 
   async function onSubmit(data: CreateDropFormValues) {
+    if (!user) {
+        toast({
+            title: 'Not Authenticated',
+            description: 'You must be logged in to create a drop.',
+            variant: 'destructive',
+        });
+        return router.push('/login');
+    }
+
     setIsLoading(true);
     try {
-      const { id } = await createDrop(data);
+      const { id } = await createDrop(data, user.uid);
       toast({
         title: 'Drop Created!',
         description: 'Your lucky drop is ready to be shared.',

@@ -1,46 +1,83 @@
 'use server';
 
-import { db } from '@/lib/db';
-import type { GiftDrop, RecipientDetails } from '@/lib/types';
+import { collection, addDoc, getDoc, doc, query, where, getDocs, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import type { GiftDrop } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
-export async function createDrop(data: Omit<GiftDrop, 'id' | 'createdAt' | 'gifts'> & {gifts: Omit<Gift, 'id'>[]}): Promise<{ id: string }> {
-  const id = Math.random().toString(36).substring(2, 9);
+// This is a placeholder, in a real app you'd get the user ID from the session
+async function getUserId() {
+    // For now, we'll use a static ID.
+    // Replace this with actual auth logic.
+    return 'static-user-id';
+}
+
+export async function createDrop(data: Omit<GiftDrop, 'id' | 'createdAt' | 'gifts' | 'userId' | 'status'> & {gifts: Omit<Gift, 'id'>[]}, userId: string): Promise<{ id: string }> {
   
-  const newDrop: GiftDrop = {
+  const newDropData = {
     ...data,
-    id,
-    gifts: data.gifts.map((g, i) => ({ ...g, id: `${id}-gift-${i}` })),
-    createdAt: Date.now(),
+    userId,
+    status: 'live' as const,
+    createdAt: serverTimestamp(),
   };
-  db.drops.set(id, newDrop);
-  return { id };
+
+  const docRef = await addDoc(collection(db, "drops"), newDropData);
+
+  const giftsWithIds = data.gifts.map((g, i) => ({ ...g, id: `${docRef.id}-gift-${i}` }));
+  await updateDoc(docRef, { gifts: giftsWithIds });
+
+  return { id: docRef.id };
 }
 
 export async function getDrop(id: string): Promise<GiftDrop | null> {
-  const drop = db.drops.get(id) || null;
-  // Deep copy to avoid server/client object mutation issues
-  return drop ? JSON.parse(JSON.stringify(drop)) : null;
+  const docRef = doc(db, 'drops', id);
+  const docSnap = await getDoc(docRef);
+
+  if (!docSnap.exists()) {
+    return null;
+  }
+  
+  const data = docSnap.data();
+  // Firestore timestamps need to be converted
+  const createdAt = (data.createdAt as Timestamp)?.toMillis() || Date.now();
+
+  return { ...data, id: docSnap.id, createdAt } as GiftDrop;
 }
+
+
+export async function getUserDrops(userId: string): Promise<GiftDrop[]> {
+    const q = query(collection(db, "drops"), where("userId", "==", userId));
+    const querySnapshot = await getDocs(q);
+    const drops: GiftDrop[] = [];
+    querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        const createdAt = (data.createdAt as Timestamp)?.toMillis() || Date.now();
+        drops.push({ ...data, id: doc.id, createdAt } as GiftDrop);
+    });
+    return drops.sort((a, b) => b.createdAt - a.createdAt);
+}
+
 
 export async function selectGift(dropId: string, giftId: string): Promise<{ success: boolean }> {
-  const drop = db.drops.get(dropId);
-  if (!drop) {
+  try {
+    const dropRef = doc(db, 'drops', dropId);
+    await updateDoc(dropRef, { selectedGiftId: giftId });
+    revalidatePath(`/drop/${dropId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error selecting gift: ", error);
     return { success: false };
   }
-  drop.selectedGiftId = giftId;
-  db.drops.set(dropId, drop);
-  revalidatePath(`/drop/${dropId}`);
-  return { success: true };
 }
 
-export async function saveRecipientDetails(dropId: string, details: RecipientDetails): Promise<{ success: boolean }> {
-  const drop = db.drops.get(dropId);
-  if (!drop) {
+export async function saveRecipientDetails(dropId: string, details: {name: string, address: string}): Promise<{ success: boolean }> {
+  try {
+    const dropRef = doc(db, 'drops', dropId);
+    await updateDoc(dropRef, { recipientDetails: details });
+    revalidatePath(`/drop/${dropId}`);
+    return { success: true };
+  } catch (error) {
+    console.error("Error saving details: ", error);
     return { success: false };
   }
-  drop.recipientDetails = details;
-  db.drops.set(dropId, drop);
-  revalidatePath(`/drop/${dropId}`);
-  return { success: true };
 }

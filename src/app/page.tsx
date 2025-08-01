@@ -60,12 +60,12 @@ export default function Home() {
             </div>
             <div className="mx-auto grid max-w-5xl items-start gap-12 sm:grid-cols-2 md:grid-cols-3 lg:gap-16 mt-16">
               {howItWorksSteps.map((step, index) => (
-                <div key={index} className="flex flex-col items-center text-center gap-4">
-                  <div className="flex items-center justify-center bg-primary/10 rounded-full h-20 w-20 mb-4">
+                <div key={index} className="grid gap-1">
+                  <div className="flex items-center justify-center bg-primary/10 rounded-full h-16 w-16 mb-4 mx-auto">
                     {step.icon}
                   </div>
-                  <h3 className="text-xl font-bold font-headline">{step.title}</h3>
-                  <p className="text-muted-foreground">
+                  <h3 className="text-xl font-bold text-center font-headline">{step.title}</h3>
+                  <p className="text-sm text-muted-foreground text-center">
                     {step.description}
                   </p>
                 </div>
