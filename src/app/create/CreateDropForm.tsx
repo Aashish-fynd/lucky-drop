@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send, UploadCloud, Sparkles, ExternalLink, Check, File as FileIcon, X, RefreshCw, Eye } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, UploadCloud, Sparkles, ExternalLink, Check, File as FileIcon, X, RefreshCw, Eye, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
@@ -104,7 +104,6 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
             },
             (error) => {
                 console.error("Upload failed:", error);
-                toast({ title: 'Upload Failed', description: 'There was an error uploading your file.', variant: 'destructive' });
                 setStatus('error');
                 setUploadProgress(null);
             },
@@ -112,7 +111,6 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
                     setStatus('success');
                     onUploadComplete(downloadURL, detectedMediaType);
-                    toast({ title: 'Upload Complete!', description: 'Your file has been uploaded.' });
                 });
             }
         );
@@ -125,54 +123,70 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
         onUploadComplete('', 'card'); // Clear form state
     }
 
-    if (status === 'idle') {
-        return (
-            <label htmlFor="file-upload" className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted/20 hover:bg-muted/50 transition-colors">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                    <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
-                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</p>
-                    <p className="text-xs text-muted-foreground">Image, Audio, or Video (MAX. 10MB)</p>
-                </div>
-                <Input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*,audio/*,video/*" />
-            </label>
-        )
-    }
-
     return (
-        <div className="w-full p-4 border rounded-lg space-y-3">
-           <div className="flex items-center gap-4">
-                <FileIcon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
-                <div className="flex-grow space-y-1 overflow-hidden">
-                    <p className="text-sm font-medium truncate">{file?.name}</p>
-                    <p className="text-xs text-muted-foreground">{file && (file.size / 1024 / 1024).toFixed(2)} MB</p>
-                </div>
-                 {status === 'uploading' && <p className="text-sm font-semibold">{uploadProgress?.toFixed(0)}%</p>}
-                 {status === 'success' && <Check className="h-6 w-6 text-green-500" />}
-                 {status === 'error' && <X className="h-6 w-6 text-destructive" />}
-           </div>
+        <div className='space-y-4'>
+             {status === 'idle' && (
+                <label htmlFor="file-upload" className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg cursor-pointer bg-muted/20 hover:bg-muted/50 transition-colors">
+                    <div className='p-3 bg-primary/10 rounded-full mb-4'>
+                        <UploadCloud className="w-8 h-8 text-primary" />
+                    </div>
+                    <p className="mb-2 text-sm text-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</p>
+                    <p className="text-xs text-muted-foreground">Image, Audio, or Video (MAX. 10MB)</p>
+                    <Input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*,audio/*,video/*" />
+                </label>
+            )}
 
-           <div className="flex items-center gap-2">
-                <Progress 
-                    value={status === 'success' ? 100 : uploadProgress} 
-                    className={cn({
-                        'h-2': true,
-                        '[&>div]:bg-green-500': status === 'success',
-                        '[&>div]:bg-destructive': status === 'error',
-                    })}
-                />
-           </div>
+            {file && (
+                 <div className="w-full p-4 border rounded-lg space-y-3 shadow-sm bg-card">
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-4">
+                            <div className={cn('p-2 rounded-full', {
+                                'bg-primary/10': status === 'uploading',
+                                'bg-green-500/10': status === 'success',
+                                'bg-destructive/10': status === 'error',
+                            })}>
+                                <FileIcon className={cn('h-6 w-6', {
+                                    'text-primary': status === 'uploading',
+                                    'text-green-500': status === 'success',
+                                    'text-destructive': status === 'error',
+                                })} />
+                            </div>
+                            
+                            <div className="flex-grow space-y-1 overflow-hidden">
+                                <p className="text-sm font-medium truncate">{file?.name}</p>
+                                <p className="text-xs text-muted-foreground">
+                                    {status === 'success' ? 'Upload Successful!' : 
+                                     status === 'error' ? 'Upload failed! Please try again.' : 
+                                     file && `${(file.size / 1024 / 1024).toFixed(2)} MB`}
+                                </p>
+                            </div>
+                        </div>
 
-           {status === 'success' && <p className="text-sm text-green-600">Upload successful!</p>}
-           {status === 'error' && (
-                <div className="flex items-center justify-between">
-                    <p className="text-sm text-destructive">Upload failed! Please try again.</p>
-                    <Button variant="link" size="sm" onClick={() => file && handleUpload(file)}><RefreshCw className="mr-2"/> Try Again</Button>
-                </div>
-           )}
+                        {status === 'uploading' && <p className="text-sm font-semibold text-muted-foreground">{uploadProgress?.toFixed(0)}%</p>}
+                        {status === 'success' && <CheckCircle className="h-6 w-6 text-green-500" />}
+                        {status === 'error' && <Button variant="ghost" size="sm" onClick={() => file && handleUpload(file)}><RefreshCw className="mr-2"/> Try Again</Button>}
+                    </div>
 
-           {status !== 'idle' && (
-                <Button variant="ghost" size="sm" onClick={reset} className="w-full mt-2"><Trash2 className="mr-2" /> Remove</Button>
-           )}
+                    {status !== 'idle' && (
+                        <div className="flex items-center gap-2">
+                                <Progress 
+                                    value={status === 'success' ? 100 : uploadProgress} 
+                                    className={cn({
+                                        'h-2': true,
+                                        '[&>div]:bg-primary': status === 'uploading',
+                                        '[&>div]:bg-green-500': status === 'success',
+                                        '[&>div]:bg-destructive': status === 'error',
+                                    })}
+                                />
+                        </div>
+                    )}
+                     {(status === 'success' || status === 'error') && (
+                        <Button variant="ghost" size="icon" onClick={reset} className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive">
+                            <Trash2 />
+                        </Button>
+                    )}
+                 </div>
+            )}
         </div>
     )
 }
