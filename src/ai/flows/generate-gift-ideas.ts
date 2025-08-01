@@ -20,7 +20,7 @@ const GiftSuggestionSchema = z.object({
   name: z.string().describe('The name of the suggested gift.'),
   image: z.string().describe('A representative image URL for the gift.'),
   platform: z.string().describe('The online platform where the gift can be found (e.g., Amazon, Etsy).'),
-  url: z.string().url().describe('The direct URL to the product page.'),
+  url: z.string().describe('The direct URL to the product page.'),
 });
 
 const GenerateGiftIdeasOutputSchema = z.object({
