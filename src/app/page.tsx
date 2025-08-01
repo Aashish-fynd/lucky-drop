@@ -40,46 +40,46 @@ export default function Home() {
                 </p>
               </div>
             </div>
-            <div className="mx-auto grid max-w-5xl items-start gap-8 sm:grid-cols-2 md:gap-12 lg:grid-cols-3 lg:max-w-none mt-12">
-              <Card className="text-center border-2 border-transparent hover:border-primary/20 bg-card hover:shadow-2xl transition-all duration-300 group">
-                <CardHeader>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-300">
-                    <Gift className="h-8 w-8" />
-                  </div>
-                  <CardTitle className="mt-4 font-headline">1. Create a Drop</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Set a title for your surprise, and add a few gift options. Choose whether the recipient picks or gets a random surprise.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="text-center border-2 border-transparent hover:border-primary/20 bg-card hover:shadow-2xl transition-all duration-300 group">
-                <CardHeader>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 text-primary group-hover:scale-110 transition-transform duration-300">
-                    <Share2 className="h-8 w-8" />
-                  </div>
-                  <CardTitle className="mt-4 font-headline">2. Share the Link</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    We'll generate a unique link and QR code for you to send. It's your secret key to the surprise.
-                  </p>
-                </CardContent>
-              </Card>
-              <Card className="text-center border-2 border-transparent hover:border-accent/20 bg-card hover:shadow-2xl transition-all duration-300 group">
-                <CardHeader>
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent/10 text-accent group-hover:scale-110 transition-transform duration-300">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-party-popper"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 14.8 8 9"/><path d="M19.2 2.8c.8.8.8 2 0 2.8l-2.8 2.8c-.8.8-2 .8-2.8 0l-4.2-4.2c-.8-.8-.8-2 0-2.8l2.8-2.8c.8-.8 2-.8 2.8 0Z"/><path d="m14.2 7.2 4.2 4.2"/><path d="m12.5 5.5 2 2"/><path d="m15.5 2.5 2 2"/><path d="m18.5 5.5 2 2"/></svg>
-                  </div>
-                  <CardTitle className="mt-4 font-headline">3. Reveal the Gift</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-muted-foreground">
-                    Your friend opens the link, reveals their gift, and can even send back an AI-generated thank you note!
-                  </p>
-                </CardContent>
-              </Card>
+            <div className="relative mx-auto max-w-3xl mt-16">
+               <div className="absolute left-1/2 top-0 bottom-0 w-1 bg-border/50 -translate-x-1/2" aria-hidden="true"></div>
+
+               <div className="space-y-16">
+                <div className="relative flex items-start gap-8">
+                    <div className="flex-shrink-0 flex items-center justify-center h-16 w-16 rounded-full bg-background border-2 border-primary text-primary relative z-10">
+                        <Gift className="h-8 w-8" />
+                    </div>
+                    <div className="text-left">
+                        <h3 className="text-2xl font-headline font-bold">1. Create a Drop</h3>
+                        <p className="mt-2 text-muted-foreground">
+                        Set a title for your surprise, and add a few gift options. Choose whether the recipient picks or gets a random surprise.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="relative flex items-start gap-8">
+                    <div className="flex-shrink-0 flex items-center justify-center h-16 w-16 rounded-full bg-background border-2 border-primary text-primary relative z-10">
+                        <Share2 className="h-8 w-8" />
+                    </div>
+                    <div className="text-left">
+                        <h3 className="text-2xl font-headline font-bold">2. Share the Link</h3>
+                        <p className="mt-2 text-muted-foreground">
+                        We'll generate a unique link and QR code for you to send. It's your secret key to the surprise.
+                        </p>
+                    </div>
+                </div>
+
+                <div className="relative flex items-start gap-8">
+                    <div className="flex-shrink-0 flex items-center justify-center h-16 w-16 rounded-full bg-background border-2 border-accent text-accent relative z-10">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-party-popper"><path d="M5.8 11.3 2 22l10.7-3.79"/><path d="M4 14.8 8 9"/><path d="M19.2 2.8c.8.8.8 2 0 2.8l-2.8 2.8c-.8.8-2 .8-2.8 0l-4.2-4.2c-.8-.8-.8-2 0-2.8l2.8-2.8c.8-.8 2-.8 2.8 0Z"/><path d="m14.2 7.2 4.2 4.2"/><path d="m12.5 5.5 2 2"/><path d="m15.5 2.5 2 2"/><path d="m18.5 5.5 2 2"/></svg>
+                    </div>
+                    <div className="text-left">
+                        <h3 className="text-2xl font-headline font-bold">3. Reveal the Gift</h3>
+                        <p className="mt-2 text-muted-foreground">
+                         Your friend opens the link, reveals their gift, and can even send back an AI-generated thank you note!
+                        </p>
+                    </div>
+                </div>
+               </div>
             </div>
           </div>
         </section>
