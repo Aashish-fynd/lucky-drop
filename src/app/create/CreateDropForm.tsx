@@ -132,6 +132,7 @@ export function CreateDropForm() {
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
   const [isAiLoading, startAiTransition] = useTransition();
+  const [isMoreAiLoading, startMoreAiTransition] = useTransition();
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions | null>(null);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
@@ -153,19 +154,28 @@ export function CreateDropForm() {
   
   const watchedGifts = form.watch('gifts');
 
-  const handleGenerateGifts = () => {
+  const handleGenerateGifts = (isGeneratingMore = false) => {
     if (!aiPrompt) {
         toast({ title: "Prompt is empty", description: "Please tell us about the recipient.", variant: "destructive" });
         return;
     }
-    startAiTransition(async () => {
+
+    const transitioner = isGeneratingMore ? startMoreAiTransition : startAiTransition;
+
+    transitioner(async () => {
         try {
-            const { gifts } = await generateGiftIdeasAction({ prompt: aiPrompt });
+            const existingGiftNames = isGeneratingMore ? aiSuggestions?.map(g => g.name) || [] : [];
+            const { gifts } = await generateGiftIdeasAction({ prompt: aiPrompt, existingGiftNames });
+            
             if (gifts && gifts.length > 0) {
-                setAiSuggestions(gifts);
-                setSelectedSuggestions(new Set());
+                if (isGeneratingMore) {
+                    setAiSuggestions(prev => [...(prev || []), ...gifts]);
+                } else {
+                    setAiSuggestions(gifts);
+                    setSelectedSuggestions(new Set());
+                }
             } else {
-                 toast({ title: "No gifts generated", description: "AI couldn't find any gifts. Try a different prompt.", variant: "destructive" });
+                 toast({ title: "No new gifts generated", description: "AI couldn't find any more gifts. Try a different prompt.", variant: "destructive" });
             }
         } catch (error) {
             console.error("AI Error:", error);
@@ -259,7 +269,7 @@ export function CreateDropForm() {
                 onChange={(e) => setAiPrompt(e.target.value)}
                 rows={4}
              />
-             <Button type="button" onClick={handleGenerateGifts} disabled={isAiLoading} className="w-full">
+             <Button type="button" onClick={() => handleGenerateGifts(false)} disabled={isAiLoading} className="w-full">
                 {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
                 Generate Gift Ideas
              </Button>
@@ -299,11 +309,21 @@ export function CreateDropForm() {
                                     />
                                 </div>
                             ))}
+                             { isMoreAiLoading &&
+                                <div className="flex items-center justify-center p-4">
+                                    <Loader2 className="mr-2 h-6 w-6 animate-spin" />
+                                    <p>Getting more ideas...</p>
+                                </div>
+                            }
                         </div>
                     </ScrollArea>
-                    <DialogFooter className='sm:justify-between flex-col-reverse sm:flex-row gap-2'>
-                        <p className="text-sm text-muted-foreground">{selectedSuggestions.size} selected</p>
-                        <div className="flex gap-2">
+                    <DialogFooter className='sm:justify-between flex-col sm:flex-row gap-2'>
+                        <Button type="button" variant="ghost" onClick={() => handleGenerateGifts(true)} disabled={isMoreAiLoading || isAiLoading}>
+                            {isMoreAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                            Generate More
+                        </Button>
+                        <div className="flex gap-2 items-center">
+                            <p className="text-sm text-muted-foreground hidden sm:block">{selectedSuggestions.size} selected</p>
                              <DialogClose asChild>
                                 <Button type="button" variant="outline">
                                 Cancel

@@ -11,17 +11,19 @@
 import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
-const GenerateGiftIdeasInputSchema = z.object({
-  prompt: z.string().describe('A description of the recipient and gift ideas.'),
-});
-export type GenerateGiftIdeasInput = z.infer<typeof GenerateGiftIdeasInputSchema>;
-
 const GiftSuggestionSchema = z.object({
   name: z.string().describe('The name of the suggested gift.'),
   image: z.string().describe('A representative image URL for the gift.'),
   platform: z.string().describe('The online platform where the gift can be found (e.g., Amazon, Etsy).'),
   url: z.string().describe('The direct URL to the product page.'),
 });
+
+const GenerateGiftIdeasInputSchema = z.object({
+  prompt: z.string().describe('A description of the recipient and gift ideas.'),
+  existingGiftNames: z.array(z.string()).optional().describe('A list of gift names that have already been suggested to avoid duplicates.'),
+});
+export type GenerateGiftIdeasInput = z.infer<typeof GenerateGiftIdeasInputSchema>;
+
 
 const GenerateGiftIdeasOutputSchema = z.object({
   gifts: z.array(GiftSuggestionSchema).min(1).max(3).describe('An array of 1 to 3 gift suggestions.'),
@@ -43,6 +45,13 @@ For each gift, you MUST provide:
 2.  A direct URL to a representative, publicly accessible image for the product.
 3.  The name of the online platform (e.g., Amazon, Etsy, Uncommon Goods).
 4.  The direct URL to the product's purchase page.
+
+{{#if existingGiftNames}}
+Here are the gifts that have already been suggested. Do NOT suggest these again or anything too similar:
+{{#each existingGiftNames}}
+- {{this}}
+{{/each}}
+{{/if}}
 
 User's Prompt: {{{prompt}}}
 `,
