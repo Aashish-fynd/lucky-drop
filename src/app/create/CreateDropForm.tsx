@@ -193,7 +193,10 @@ function FileUploader({
       "base64"
     );
 
-    const storage = getStorage(app);
+    const storage = getStorage(
+      app,
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    );
     const storageRef = ref(storage, `uploads/${user?.uid}/${uniqueId}`);
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
