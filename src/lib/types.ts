@@ -27,7 +27,7 @@ export interface GiftDrop {
   gifterMedia?: GifterMedia;
   selectedGiftId?: string;
   recipientDetails?: RecipientDetails;
-  createdAt: number;
+  createdAt: number; // Stored as a Unix timestamp (milliseconds)
   status: 'draft' | 'live';
-  recipientOpenedAt?: number;
+  recipientOpenedAt?: number; // Stored as a Unix timestamp (milliseconds)
 }

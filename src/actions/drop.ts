@@ -23,6 +23,8 @@ export async function createDrop(data: Omit<GiftDrop, 'id' | 'createdAt' | 'gift
 
   const docRef = await addDoc(collection(db, "drops"), newDropData);
 
+  // Firestore doesn't immediately have the server timestamp, so we add gifts separately
+  // so we can have stable gift IDs.
   const giftsWithIds = data.gifts.map((g, i) => ({ ...g, id: `${docRef.id}-gift-${i}` }));
   await updateDoc(docRef, { gifts: giftsWithIds });
 
@@ -61,7 +63,7 @@ export async function getUserDrops(userId: string): Promise<GiftDrop[]> {
 export async function selectGift(dropId: string, giftId: string): Promise<{ success: boolean }> {
   try {
     const dropRef = doc(db, 'drops', dropId);
-    await updateDoc(dropRef, { selectedGiftId: giftId });
+    await updateDoc(dropRef, { selectedGiftId: giftId, recipientOpenedAt: serverTimestamp() });
     revalidatePath(`/drop/${dropId}`);
     return { success: true };
   } catch (error) {

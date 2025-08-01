@@ -12,10 +12,10 @@ import { useToast } from '@/hooks/use-toast';
 import type { GiftDrop } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Gift, Loader2, Mic, Send, SmilePlus, Video } from 'lucide-react';
-import Image from 'next/image';
-import { useEffect, useState, useTransition } from 'react';
+import { useEffect, useState, useTransition, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Stage = 'initial' | 'selecting' | 'revealing' | 'revealed' | 'details' | 'thanking' | 'done';
 
@@ -30,12 +30,19 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
-  const [thankYou, setThankYou] = useState<{ message: string; mediaType: string } | null>(null);
+  const [thankYou, setThankYou] = useState<{ message: string; mediaType: string, mediaContent?: string } | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [hasCameraPermission, setHasCameraPermission] = useState(false);
 
   const selectedGift = drop.gifts.find(g => g.id === selectedGiftId);
 
   useEffect(() => {
+    // Stage navigation based on drop state
+    if(drop.recipientOpenedAt && !drop.selectedGiftId){
+        setStage('selecting');
+    }
     if (drop.selectedGiftId) {
       if (drop.recipientDetails) {
         setStage('thanking');
@@ -74,6 +81,17 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
         });
     });
   }
+  
+  const handleOpenSurprise = () => {
+    startTransition(async () => {
+        // We just need to mark that the user has opened it.
+        // The selection happens on the next screen.
+        // We pass a "fake" gift ID which won't be saved, but will trigger the timestamp update.
+        // A better approach might be a dedicated action.
+       await selectGift(drop.id, '');
+       setStage('selecting');
+    })
+  }
 
   const form = useForm<z.infer<typeof detailsSchema>>({
     resolver: zodResolver(detailsSchema),
@@ -102,6 +120,9 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
           recipientName: drop.recipientDetails?.name || 'there',
         });
         setThankYou(result);
+        if(result.mediaType === 'video' || result.mediaType === 'selfie') {
+            getCameraPermission();
+        }
       } catch (error) {
         toast({ title: 'AI Error', description: 'Could not generate thank you note.', variant: 'destructive' });
       } finally {
@@ -109,6 +130,26 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
       }
     });
   }
+
+  const getCameraPermission = async () => {
+    try {
+        const stream = await navigator.mediaDevices.getUserMedia({video: true});
+        setHasCameraPermission(true);
+
+        if (videoRef.current) {
+        videoRef.current.srcObject = stream;
+        }
+    } catch (error) {
+        console.error('Error accessing camera:', error);
+        setHasCameraPermission(false);
+        toast({
+        variant: 'destructive',
+        title: 'Camera Access Denied',
+        description: 'Please enable camera permissions in your browser settings to use this feature.',
+        });
+    }
+   };
+
   
   const renderStage = () => {
     switch (stage) {
@@ -117,7 +158,9 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
           <Card className="text-center p-8 shadow-2xl animate-in fade-in zoom-in-95">
             <h1 className="text-3xl font-bold font-headline">{drop.title}</h1>
             <p className="text-muted-foreground mt-2">{drop.message}</p>
-            <Button size="lg" className="mt-6" onClick={() => setStage('selecting')}>Open Your Surprise</Button>
+            <Button size="lg" className="mt-6" onClick={handleOpenSurprise} disabled={isPending}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Open Your Surprise' }
+            </Button>
           </Card>
         );
       case 'selecting':
@@ -196,11 +239,30 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
                         <div className="p-4 border rounded-lg bg-muted/50 text-center space-y-4">
                            <p className="italic">"{thankYou.message}"</p>
                            <p className="text-sm font-medium">AI suggests you record a {thankYou.mediaType}:</p>
-                           <div className="flex justify-center gap-4">
-                             <Button variant="outline" disabled={thankYou.mediaType !== 'audio'}><Mic className="mr-2"/> Record Audio</Button>
-                             <Button variant="outline" disabled={thankYou.mediaType !== 'video'}><Video className="mr-2"/> Record Video</Button>
-                             <Button variant="outline" disabled={thankYou.mediaType !== 'selfie'}><SmilePlus className="mr-2"/> Take Selfie</Button>
-                           </div>
+                            {thankYou.mediaContent ? (
+                                <audio controls src={thankYou.mediaContent} className='w-full'></audio>
+                            ) : (
+                                <>
+                                {(thankYou.mediaType === 'video' || thankYou.mediaType === 'selfie') && (
+                                    <div className='space-y-2'>
+                                        <video ref={videoRef} className="w-full aspect-video rounded-md bg-black" autoPlay muted />
+                                        { !hasCameraPermission && (
+                                            <Alert variant="destructive">
+                                                <AlertTitle>Camera Access Required</AlertTitle>
+                                                <AlertDescription>
+                                                    Please allow camera access to use this feature.
+                                                </AlertDescription>
+                                            </Alert>
+                                        )}
+                                    </div>
+                                )}
+                                <div className="flex justify-center gap-4">
+                                    <Button variant="outline" disabled={thankYou.mediaType !== 'audio'}><Mic className="mr-2"/> Record Audio</Button>
+                                    <Button variant="outline" disabled={thankYou.mediaType !== 'video'}><Video className="mr-2"/> Record Video</Button>
+                                    <Button variant="outline" disabled={thankYou.mediaType !== 'selfie'}><SmilePlus className="mr-2"/> Take Selfie</Button>
+                                </div>
+                                </>
+                            )}
                         </div>
                     ) : (
                         <Button className="w-full" onClick={handleGenerateThankYou} disabled={isGenerating || isPending}>
