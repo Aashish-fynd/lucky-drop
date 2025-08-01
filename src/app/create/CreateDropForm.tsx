@@ -354,7 +354,7 @@ export function CreateDropForm() {
                         />
                     </div>
                     <div className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 relative">
-                        <Image src={watchedGifts?.[index]?.image || 'https://placehold.co/400.png'} alt={`Preview for gift ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md border bg-muted" data-ai-hint="gift present" />
+                        <Image src={watchedGifts?.[index]?.image || 'https://placehold.co/400.png'} alt={`Preview for gift ${index + 1}`} layout="fill" objectFit="cover" className="rounded-md border bg-muted" data-ai-hint="gift present" unoptimized />
                          <FormField
                             control={form.control}
                             name={`gifts.${index}.image`}
