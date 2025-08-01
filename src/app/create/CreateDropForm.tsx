@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -49,7 +50,7 @@ import {
   uploadBytesResumable,
   getDownloadURL,
 } from "firebase/storage";
-import { app } from "@/lib/firebase"; // Import the app instance
+import { app } from "@/lib/firebase";
 import { Progress } from "@/components/ui/progress";
 import { generateGiftIdeasAction } from "@/actions/ai";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -61,6 +62,7 @@ import {
   DialogTitle,
   DialogFooter,
   DialogClose,
+  DialogTrigger,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GenerateGiftIdeasOutput } from "@/ai/flows/generate-gift-ideas";
@@ -102,14 +104,16 @@ const formSchema = z
   })
   .refine(
     (data) => {
+      // If either url or type has a value, both must have a value.
       if (data.gifterMedia?.url || data.gifterMedia?.type) {
         return !!data.gifterMedia.url && !!data.gifterMedia.type;
       }
       return true;
     },
     {
+      // This message will appear under the file uploader if validation fails.
       message: "Media is required.",
-      path: ["gifterMedia.url"],
+      path: ["gifterMedia"], // Pointing error to the media object itself
     }
   );
 
@@ -122,14 +126,15 @@ type MediaType = "card" | "audio" | "video";
 function MediaPreview({ type, url }: { type: MediaType; url: string }) {
   if (type === "card") {
     return (
-      <Image
-        src={url}
-        alt="Uploaded Card Preview"
-        width={200}
-        height={150}
-        className="rounded-md object-cover"
-        data-ai-hint="greeting card"
-      />
+      <div className="relative w-full aspect-video">
+        <Image
+          src={url}
+          alt="Uploaded Card Preview"
+          fill
+          className="rounded-md object-contain"
+          data-ai-hint="greeting card"
+        />
+      </div>
     );
   }
   if (type === "audio") {
@@ -141,10 +146,13 @@ function MediaPreview({ type, url }: { type: MediaType; url: string }) {
   return null;
 }
 
+
 function FileUploader({
   onUploadComplete,
+  form
 }: {
   onUploadComplete: (url: string, type: MediaType | "") => void;
+  form: any;
 }) {
   const { user } = useAuth();
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -168,10 +176,9 @@ function FileUploader({
     setFile(fileToUpload);
     setUploadProgress(0);
     setMediaInfo(null);
+    form.clearErrors("gifterMedia");
 
-    const detectedMediaType: MediaType | null = fileToUpload.type.startsWith(
-      "image/"
-    )
+    const detectedMediaType: MediaType | null = fileToUpload.type.startsWith("image/")
       ? "card"
       : fileToUpload.type.startsWith("audio/")
       ? "audio"
@@ -189,22 +196,15 @@ function FileUploader({
       return;
     }
 
-    const uniqueId = Buffer.from(`${Date.now()}_${fileToUpload.name}`).toString(
-      "base64"
-    );
-
-    const storage = getStorage(
-      app,
-      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    );
+    const uniqueId = Buffer.from(`${Date.now()}_${fileToUpload.name}`).toString("base64");
+    const storage = getStorage(app, process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
     const storageRef = ref(storage, `uploads/${user?.uid}/${uniqueId}`);
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
     uploadTask.on(
       "state_changed",
       (snapshot) => {
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
         setUploadProgress(progress);
       },
       (error) => {
@@ -273,85 +273,90 @@ function FileUploader({
                   "bg-destructive/10": status === "error",
                 })}
               >
-                {status === "success" && mediaInfo?.type === "card" && (
-                  <ImageIcon className="h-6 w-6 text-green-500" />
+                {mediaInfo?.type === "card" && (
+                  <ImageIcon className={cn("h-6 w-6", { "text-green-500": status === 'success', "text-primary": status === 'uploading' })} />
                 )}
-                {status === "success" && mediaInfo?.type === "audio" && (
-                  <Music className="h-6 w-6 text-green-500" />
+                {mediaInfo?.type === "audio" && (
+                  <Music className={cn("h-6 w-6", { "text-green-500": status === 'success', "text-primary": status === 'uploading' })} />
                 )}
-                {status === "success" && mediaInfo?.type === "video" && (
-                  <Video className="h-6 w-6 text-green-500" />
+                {mediaInfo?.type === "video" && (
+                  <Video className={cn("h-6 w-6", { "text-green-500": status === 'success', "text-primary": status === 'uploading' })} />
                 )}
-                {(status === "uploading" || status === "error") && (
-                  <FileIcon
-                    className={cn("h-6 w-6", {
-                      "text-primary": status === "uploading",
-                      "text-destructive": status === "error",
-                    })}
-                  />
-                )}
+                {!mediaInfo && <FileIcon className={cn("h-6 w-6", { "text-primary": status === "uploading", "text-destructive": status === "error" })} />}
               </div>
-
               <div className="flex-grow space-y-1 overflow-hidden">
                 <p className="text-sm font-medium truncate">{file?.name}</p>
                 <p className="text-xs text-muted-foreground">
                   {status === "success"
-                    ? "Upload Successful!"
+                    ? `Upload Successful! (${(file.size / 1024 / 1024).toFixed(2)} MB)`
                     : status === "error"
                     ? "Upload failed! Please try again."
                     : file && `${(file.size / 1024 / 1024).toFixed(2)} MB`}
                 </p>
               </div>
             </div>
-
-            {status === "uploading" && (
-              <p className="text-sm font-semibold text-muted-foreground">
-                {uploadProgress?.toFixed(0)}%
-              </p>
-            )}
-            {status === "success" && (
-              <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />
-            )}
-            {status === "error" && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => file && handleUpload(file)}
-              >
-                <RefreshCw className="mr-2" /> Try Again
-              </Button>
-            )}
+            
+            <div className="flex items-center gap-2">
+              {status === "success" && (
+                <div className="group relative">
+                  <CheckCircle className="h-6 w-6 text-green-500" />
+                  <button onClick={reset} className="absolute inset-0 flex items-center justify-center bg-destructive rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 className="h-4 w-4 text-destructive-foreground" />
+                  </button>
+                </div>
+              )}
+               {status === "error" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => file && handleUpload(file)}
+                  >
+                    <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+                  </Button>
+              )}
+            </div>
           </div>
 
           {status === "uploading" && (
-            <Progress
-              value={uploadProgress}
-              className="h-2 [&>div]:bg-primary"
-            />
-          )}
-
-          {status === "success" && mediaInfo && (
-            <div className="pt-2">
-              <MediaPreview type={mediaInfo.type} url={mediaInfo.url} />
+            <div className="flex items-center gap-3">
+              <Progress value={uploadProgress} className="h-2 flex-1" />
+              <span className="text-xs font-medium text-muted-foreground">{uploadProgress?.toFixed(0)}%</span>
             </div>
           )}
 
-          {(status === "success" || status === "error") && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={reset}
-              className="absolute right-2 top-2 text-muted-foreground hover:text-destructive"
-            >
-              <Trash2 className="h-4 w-4" />
-              <span className="sr-only">Remove file</span>
-            </Button>
+          {status === 'success' && mediaInfo && (
+            <Dialog>
+              <DialogTrigger asChild>
+                 <div className="relative w-24 h-24 mt-2 cursor-pointer group">
+                  {mediaInfo.type === 'card' ? (
+                     <Image src={mediaInfo.url} alt="thumbnail" fill className="object-cover rounded-md"/>
+                  ) : (
+                    <div className="w-full h-full bg-muted rounded-md flex items-center justify-center">
+                       {mediaInfo.type === 'video' ? <Video className="w-8 h-8 text-muted-foreground"/> : <Music className="w-8 h-8 text-muted-foreground"/>}
+                    </div>
+                  )}
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
+                      <Eye className="w-6 h-6 text-white"/>
+                  </div>
+                </div>
+              </DialogTrigger>
+              <DialogContent className="max-w-2xl">
+                  <MediaPreview type={mediaInfo.type} url={mediaInfo.url} />
+              </DialogContent>
+            </Dialog>
+          )}
+
+           {(status === 'error') && (
+            <button onClick={reset} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive">
+               <Trash2 className="h-4 w-4" />
+            </button>
           )}
         </div>
       )}
     </div>
   );
 }
+
 
 export function CreateDropForm() {
   const router = useRouter();
@@ -427,7 +432,6 @@ export function CreateDropForm() {
             title: "No new gifts generated",
             description:
               "AI couldn't find any more gifts. Try a different prompt.",
-            variant: "destructive",
           });
         }
       } catch (error) {
@@ -494,7 +498,6 @@ export function CreateDropForm() {
       if (!finalData.gifterMedia?.url || !finalData.gifterMedia?.type) {
         delete finalData.gifterMedia;
       }
-
       const { id } = await createDrop(finalData as any, user.uid);
       toast({
         title: "Drop Created!",
@@ -589,9 +592,9 @@ export function CreateDropForm() {
                         <Image
                           src={gift.image || "https://placehold.co/400.png"}
                           alt={gift.name}
-                          layout="fill"
-                          objectFit="cover"
-                          className="rounded-md"
+                          fill
+                          sizes="96px"
+                          className="object-cover rounded-md"
                           unoptimized
                         />
                       </div>
@@ -714,6 +717,7 @@ export function CreateDropForm() {
           </CardHeader>
           <CardContent>
             <FileUploader
+              form={form}
               onUploadComplete={(url, type) => {
                 if (url && type) {
                   form.setValue("gifterMedia.url", url, {
@@ -725,16 +729,22 @@ export function CreateDropForm() {
                 } else {
                   form.setValue("gifterMedia.url", undefined);
                   form.setValue("gifterMedia.type", undefined);
+                  form.trigger("gifterMedia"); // trigger validation after clearing
                 }
               }}
             />
             <FormField
               control={form.control}
-              name="gifterMedia.url"
-              render={() => <FormMessage />}
+              name="gifterMedia"
+              render={() => (
+                <FormItem>
+                  <FormMessage className="mt-2" />
+                </FormItem>
+              )}
             />
           </CardContent>
         </Card>
+
 
         <Card>
           <CardHeader>
@@ -803,9 +813,8 @@ export function CreateDropForm() {
                         "https://placehold.co/400.png"
                       }
                       alt={`Preview for gift ${index + 1}`}
-                      layout="fill"
-                      objectFit="cover"
-                      className="rounded-md border bg-muted"
+                      fill
+                      className="rounded-md border bg-muted object-cover"
                       data-ai-hint="gift present"
                       unoptimized
                     />
