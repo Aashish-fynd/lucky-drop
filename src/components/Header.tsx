@@ -1,12 +1,12 @@
-'use client';
+"use client";
 
-import { Logo } from './Logo';
-import { Button } from './ui/button';
-import Link from 'next/link';
-import { useAuth } from '@/hooks/use-auth';
-import { auth } from '@/lib/firebase';
-import { signOut } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+import { Logo } from "./Logo";
+import { Button } from "./ui/button";
+import Link from "next/link";
+import { useAuth } from "@/hooks/use-auth";
+import { auth } from "@/lib/firebase";
+import { signOut } from "firebase/auth";
+import { useRouter } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,10 +14,9 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
-import { LayoutDashboard, LogOut } from 'lucide-react';
-
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { LayoutDashboard, LogOut } from "lucide-react";
 
 export function Header() {
   const { user } = useAuth();
@@ -25,7 +24,7 @@ export function Header() {
 
   const handleLogout = async () => {
     await signOut(auth);
-    router.push('/');
+    router.push("/");
   };
 
   return (
@@ -33,37 +32,39 @@ export function Header() {
       <div className="container mx-auto flex items-center justify-between">
         <Logo />
         {user ? (
-            <div className="flex items-center gap-4">
-                <Button asChild variant="ghost">
-                    <Link href="/create">Create a Drop</Link>
-                </Button>
-                <DropdownMenu>
-                    <DropdownMenuTrigger>
-                        <Avatar>
-                            <AvatarImage src={user.photoURL || undefined} />
-                            <AvatarFallback>{user.email?.[0].toUpperCase()}</AvatarFallback>
-                        </Avatar>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
-                        <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => router.push('/dashboard')}>
-                           <LayoutDashboard className="mr-2" /> Dashboard
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={handleLogout}>
-                            <LogOut className="mr-2" /> Logout
-                        </DropdownMenuItem>
-                    </DropdownMenuContent>
-                </DropdownMenu>
-            </div>
+          <div className="flex items-center gap-4">
+            <Button asChild variant="ghost">
+              <Link href="/create">Create a Drop</Link>
+            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger>
+                <Avatar>
+                  <AvatarImage src={user.photoURL || undefined} />
+                  <AvatarFallback>
+                    {user.email?.[0].toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuLabel>{user.email}</DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => router.push("/dashboard")}>
+                  <LayoutDashboard className="mr-2" /> Dashboard
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleLogout}>
+                  <LogOut className="mr-2" /> Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         ) : (
-            <div className='flex items-center gap-2'>
-                <Button asChild variant="ghost">
-                    <Link href="/login">Log In</Link>
-                </Button>
-                <Button asChild>
-                    <Link href="/signup">Sign Up</Link>
-                </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost">
+              <Link href="/login">Log In</Link>
+            </Button>
+            <Button asChild>
+              <Link href="/signup">Sign Up</Link>
+            </Button>
           </div>
         )}
       </div>
