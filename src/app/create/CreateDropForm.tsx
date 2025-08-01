@@ -12,16 +12,22 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
   image: z.string().url('Must be a valid image URL.').min(1, 'Image URL is required.'),
   platform: z.string().optional(),
 });
+
+const gifterMediaSchema = z.object({
+    type: z.enum(['audio', 'video', 'card']),
+    url: z.string().min(1, 'URL is required').url('Must be a valid URL'),
+}).optional();
 
 const formSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters.').max(50, 'Title must be 50 characters or less.'),
@@ -30,6 +36,7 @@ const formSchema = z.object({
   distributionMode: z.enum(['random', 'manual'], {
     required_error: 'You need to select a distribution mode.',
   }),
+  gifterMedia: gifterMediaSchema,
 });
 
 type CreateDropFormValues = z.infer<typeof formSchema>;
@@ -47,6 +54,10 @@ export function CreateDropForm() {
       message: '',
       gifts: [{ name: '', image: 'https://placehold.co/600x400.png', platform: '' }],
       distributionMode: 'random',
+      gifterMedia: {
+          type: 'card',
+          url: '',
+      }
     },
   });
 
@@ -69,7 +80,13 @@ export function CreateDropForm() {
 
     setIsLoading(true);
     try {
-      const { id } = await createDrop(data as any, user.uid);
+      // Filter out empty media url
+      const finalData = { ...data };
+      if (finalData.gifterMedia && !finalData.gifterMedia.url) {
+        delete finalData.gifterMedia;
+      }
+
+      const { id } = await createDrop(finalData as any, user.uid);
       toast({
         title: 'Drop Created!',
         description: 'Your lucky drop is ready to be shared.',
@@ -120,6 +137,69 @@ export function CreateDropForm() {
               )}
             />
           </CardContent>
+        </Card>
+
+         <Card>
+            <CardHeader>
+                <CardTitle className="flex items-center gap-2">🎁 Personal Touch (Optional)</CardTitle>
+            </CardHeader>
+            <CardContent>
+                 <Tabs defaultValue="card" className="w-full" onValueChange={(v) => form.setValue('gifterMedia.type', v as any)}>
+                    <TabsList className='grid w-full grid-cols-3'>
+                        <TabsTrigger value="card"><ImageIcon className='mr-2' /> Image Card</TabsTrigger>
+                        <TabsTrigger value="audio"><Music className='mr-2' /> Audio Note</TabsTrigger>
+                        <TabsTrigger value="video"><Video className='mr-2' /> Video Message</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="card" className='pt-4'>
+                        <FormField
+                            control={form.control}
+                            name="gifterMedia.url"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Image URL</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="https://image.com/your-card.png" {...field} />
+                                </FormControl>
+                                <FormDescription>Add a URL to a custom image or photo.</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </TabsContent>
+                    <TabsContent value="audio" className='pt-4'>
+                         <FormField
+                            control={form.control}
+                            name="gifterMedia.url"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Audio URL</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="https://audio.com/your-note.mp3" {...field} />
+                                </FormControl>
+                                <FormDescription>Add a URL to a hosted audio file.</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </TabsContent>
+                    <TabsContent value="video" className='pt-4'>
+                         <FormField
+                            control={form.control}
+                            name="gifterMedia.url"
+                            render={({ field }) => (
+                                <FormItem>
+                                <FormLabel>Video URL</FormLabel>
+                                <FormControl>
+                                    <Input placeholder="https://youtube.com/watch?v=..." {...field} />
+                                </FormControl>
+                                <FormDescription>Add a URL to a video (e.g., YouTube, Vimeo).</FormDescription>
+                                <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+                    </TabsContent>
+                </Tabs>
+            </CardContent>
         </Card>
 
         <Card>

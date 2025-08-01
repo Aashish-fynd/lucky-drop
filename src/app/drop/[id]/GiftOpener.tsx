@@ -11,11 +11,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import type { GiftDrop } from '@/lib/types';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Gift, Loader2, Mic, Send, SmilePlus, Video } from 'lucide-react';
+import { Gift, Loader2, Mic, Send, SmilePlus, Video, Music, Image as ImageIcon } from 'lucide-react';
 import { useEffect, useState, useTransition, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import Image from 'next/image';
 
 type Stage = 'initial' | 'selecting' | 'revealing' | 'revealed' | 'details' | 'thanking' | 'done';
 
@@ -23,6 +24,60 @@ const detailsSchema = z.object({
   name: z.string().min(2, 'Name is required.'),
   address: z.string().min(10, 'A full address is required.'),
 });
+
+function GifterMediaDisplay({ media }: { media: NonNullable<GiftDrop['gifterMedia']>}) {
+    if (!media.url) return null;
+    
+    let content;
+
+    switch(media.type) {
+        case 'card':
+            content = <Image src={media.url} alt="Gifter's Card" width={500} height={300} className='rounded-lg shadow-lg' data-ai-hint="greeting card" />;
+            break;
+        case 'audio':
+            content = <audio controls src={media.url} className='w-full' />;
+            break;
+        case 'video':
+            // Basic video embed for YouTube
+             if (media.url.includes('youtube.com') || media.url.includes('youtu.be')) {
+                const videoId = media.url.split('v=')[1]?.split('&')[0] || media.url.split('/').pop();
+                content = (
+                    <div className="aspect-video w-full">
+                        <iframe
+                            className="w-full h-full rounded-lg"
+                            src={`https://www.youtube.com/embed/${videoId}`}
+                            title="YouTube video player"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                        ></iframe>
+                    </div>
+                );
+            } else {
+                 content = <video controls src={media.url} className='w-full rounded-lg' />;
+            }
+            break;
+        default:
+             content = null;
+    }
+
+    if (!content) return null;
+
+    const icons = {
+        card: <ImageIcon />,
+        audio: <Music />,
+        video: <Video />,
+    };
+
+    return (
+        <div className="space-y-4 text-center">
+            <div className='flex items-center justify-center gap-2 text-muted-foreground'>
+                {icons[media.type]}
+                <p>A personal {media.type} from the gifter!</p>
+            </div>
+            {content}
+        </div>
+    )
+}
 
 export function GiftOpener({ drop }: { drop: GiftDrop }) {
   const [stage, setStage] = useState<Stage>('initial');
@@ -155,12 +210,15 @@ export function GiftOpener({ drop }: { drop: GiftDrop }) {
     switch (stage) {
       case 'initial':
         return (
-          <Card className="text-center p-8 shadow-2xl animate-in fade-in zoom-in-95">
-            <h1 className="text-3xl font-bold font-headline">{drop.title}</h1>
-            <p className="text-muted-foreground mt-2">{drop.message}</p>
-            <Button size="lg" className="mt-6" onClick={handleOpenSurprise} disabled={isPending}>
-                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Open Your Surprise' }
-            </Button>
+          <Card className="text-center p-8 shadow-2xl animate-in fade-in zoom-in-95 max-w-lg w-full">
+            {drop.gifterMedia && <GifterMediaDisplay media={drop.gifterMedia} />}
+            <div className={drop.gifterMedia ? 'mt-8' : ''}>
+                <h1 className="text-3xl font-bold font-headline">{drop.title}</h1>
+                <p className="text-muted-foreground mt-2">{drop.message}</p>
+                <Button size="lg" className="mt-6" onClick={handleOpenSurprise} disabled={isPending}>
+                    {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Open Your Surprise' }
+                </Button>
+            </div>
           </Card>
         );
       case 'selecting':

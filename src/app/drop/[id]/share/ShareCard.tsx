@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { Check, Copy, Download, PartyPopper } from "lucide-react";
+import { ArrowLeft, Check, Copy, Download, PartyPopper } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 export function ShareCard({ dropId }: { dropId: string }) {
@@ -96,10 +97,13 @@ export function ShareCard({ dropId }: { dropId: string }) {
             : <div className="p-4 border rounded-lg inline-block bg-white h-[200px] w-[200px]"></div> }
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex flex-col sm:flex-row gap-2">
         <Button className="w-full bg-accent hover:bg-accent/90" onClick={downloadQrCode}>
           <Download className="mr-2 h-4 w-4" />
-          Download QR Code
+          Download QR
+        </Button>
+         <Button variant="outline" className="w-full" asChild>
+            <Link href="/dashboard"><ArrowLeft className="mr-2"/> Back to Dashboard</Link>
         </Button>
       </CardFooter>
     </Card>

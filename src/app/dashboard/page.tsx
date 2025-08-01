@@ -11,7 +11,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { Copy, Eye, Users } from "lucide-react";
+import { Copy, Eye, Users, ExternalLink } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -122,7 +122,10 @@ export default function DashboardPage() {
                                             )}
                                         </div>
                                     </CardContent>
-                                    <CardFooter className="flex-wrap gap-2">
+                                    <CardFooter className="flex flex-wrap gap-2">
+                                         <Button size="sm" variant="default" asChild>
+                                            <Link href={`/drop/${drop.id}`} target="_blank"><ExternalLink className="mr-2" /> Preview Drop</Link>
+                                        </Button>
                                         <Button size="sm" variant="outline" asChild>
                                             <Link href={`/drop/${drop.id}/share`}><Eye className="mr-2" /> View Share Page</Link>
                                         </Button>
