@@ -2,12 +2,13 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
   projectId: "lucky-drop-stgmd",
   appId: "1:454139732710:web:a763b3b7a665bf34ebd127",
-  storageBucket: "lucky-drop-stgmd.firebasestorage.app",
+  storageBucket: "lucky-drop-stgmd.appspot.com",
   apiKey: "AIzaSyBZwU5_n1YN0X9B8tEXF7OZu4c3HHSug5E",
   authDomain: "lucky-drop-stgmd.firebaseapp.com",
   messagingSenderId: "454139732710"
@@ -17,6 +18,7 @@ const firebaseConfig = {
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 const googleProvider = new GoogleAuthProvider();
 
-export { app, auth, db, googleProvider };
+export { app, auth, db, storage, googleProvider };

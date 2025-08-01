@@ -12,11 +12,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon, UploadCloud } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { Progress } from '@/components/ui/progress';
 
 const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
@@ -26,7 +28,7 @@ const giftSchema = z.object({
 
 const gifterMediaSchema = z.object({
     type: z.enum(['audio', 'video', 'card']),
-    url: z.string().min(1, 'URL is required').url('Must be a valid URL'),
+    url: z.string().min(1, 'Media is required').url('Must be a valid URL'),
 }).optional();
 
 const formSchema = z.object({
@@ -41,6 +43,81 @@ const formSchema = z.object({
 
 type CreateDropFormValues = z.infer<typeof formSchema>;
 
+function FileUploader({ onUploadComplete, acceptedFileTypes, mediaType }: { onUploadComplete: (url: string) => void; acceptedFileTypes: string; mediaType: 'image' | 'audio' | 'video' }) {
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+    const [fileUrl, setFileUrl] = useState<string | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const { toast } = useToast();
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            handleUpload(file);
+        }
+    };
+
+    const handleUpload = (file: File) => {
+        setIsUploading(true);
+        const storage = getStorage();
+        const storageRef = ref(storage, `uploads/${mediaType}/${Date.now()}_${file.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, file);
+
+        uploadTask.on('state_changed',
+            (snapshot) => {
+                const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                setUploadProgress(progress);
+            },
+            (error) => {
+                console.error("Upload failed:", error);
+                toast({ title: 'Upload Failed', description: 'There was an error uploading your file.', variant: 'destructive' });
+                setIsUploading(false);
+                setUploadProgress(null);
+            },
+            () => {
+                getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                    setFileUrl(downloadURL);
+                    onUploadComplete(downloadURL);
+                    setIsUploading(false);
+                     toast({ title: 'Upload Complete!', description: 'Your file has been uploaded.' });
+                });
+            }
+        );
+    };
+
+    return (
+        <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-4">
+            {isUploading && uploadProgress !== null ? (
+                <div className='space-y-2'>
+                    <p>Uploading...</p>
+                    <Progress value={uploadProgress} />
+                </div>
+            ) : fileUrl ? (
+                <div>
+                    {mediaType === 'image' && <Image src={fileUrl} alt="Uploaded preview" width={200} height={200} className='mx-auto rounded-lg' />}
+                    {mediaType === 'audio' && <audio controls src={fileUrl} className='w-full' />}
+                    {mediaType === 'video' && <video controls src={fileUrl} className='w-full rounded-lg' />}
+                     <Button variant="link" onClick={() => setFileUrl(null)}>Upload another file</Button>
+                </div>
+            ) : (
+                <>
+                    <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
+                    <p className="text-muted-foreground">Drag & drop or click to upload</p>
+                    <Input
+                        id="file-upload"
+                        type="file"
+                        className="sr-only"
+                        onChange={handleFileChange}
+                        accept={acceptedFileTypes}
+                    />
+                     <label htmlFor="file-upload" className="cursor-pointer text-primary underline">
+                        Choose a file
+                    </label>
+                </>
+            )}
+        </div>
+    );
+}
+
 export function CreateDropForm() {
   const router = useRouter();
   const { toast } = useToast();
@@ -54,10 +131,6 @@ export function CreateDropForm() {
       message: '',
       gifts: [{ name: '', image: 'https://placehold.co/600x400.png', platform: '' }],
       distributionMode: 'random',
-      gifterMedia: {
-          type: 'card',
-          url: '',
-      }
     },
   });
 
@@ -80,7 +153,6 @@ export function CreateDropForm() {
 
     setIsLoading(true);
     try {
-      // Filter out empty media url
       const finalData = { ...data };
       if (finalData.gifterMedia && !finalData.gifterMedia.url) {
         delete finalData.gifterMedia;
@@ -141,7 +213,7 @@ export function CreateDropForm() {
 
          <Card>
             <CardHeader>
-                <CardTitle className="flex items-center gap-2">🎁 Personal Touch (Optional)</CardTitle>
+                <CardTitle className="flex items-center gap-2"><Gift className="text-primary"/> Personal Touch (Optional)</CardTitle>
             </CardHeader>
             <CardContent>
                  <Tabs defaultValue="card" className="w-full" onValueChange={(v) => form.setValue('gifterMedia.type', v as any)}>
@@ -151,52 +223,28 @@ export function CreateDropForm() {
                         <TabsTrigger value="video"><Video className='mr-2' /> Video Message</TabsTrigger>
                     </TabsList>
                     <TabsContent value="card" className='pt-4'>
-                        <FormField
-                            control={form.control}
-                            name="gifterMedia.url"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Image URL</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="https://image.com/your-card.png" {...field} />
-                                </FormControl>
-                                <FormDescription>Add a URL to a custom image or photo.</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
+                        <FileUploader 
+                            mediaType="image"
+                            acceptedFileTypes="image/*"
+                            onUploadComplete={(url) => form.setValue('gifterMedia.url', url, { shouldValidate: true })}
                         />
+                        <FormField control={form.control} name="gifterMedia.url" render={() => <FormMessage />} />
                     </TabsContent>
                     <TabsContent value="audio" className='pt-4'>
-                         <FormField
-                            control={form.control}
-                            name="gifterMedia.url"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Audio URL</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="https://audio.com/your-note.mp3" {...field} />
-                                </FormControl>
-                                <FormDescription>Add a URL to a hosted audio file.</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
+                         <FileUploader 
+                            mediaType="audio"
+                            acceptedFileTypes="audio/*"
+                            onUploadComplete={(url) => form.setValue('gifterMedia.url', url, { shouldValidate: true })}
                         />
+                         <FormField control={form.control} name="gifterMedia.url" render={() => <FormMessage />} />
                     </TabsContent>
                     <TabsContent value="video" className='pt-4'>
-                         <FormField
-                            control={form.control}
-                            name="gifterMedia.url"
-                            render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Video URL</FormLabel>
-                                <FormControl>
-                                    <Input placeholder="https://youtube.com/watch?v=..." {...field} />
-                                </FormControl>
-                                <FormDescription>Add a URL to a video (e.g., YouTube, Vimeo).</FormDescription>
-                                <FormMessage />
-                                </FormItem>
-                            )}
+                         <FileUploader 
+                            mediaType="video"
+                            acceptedFileTypes="video/*"
+                            onUploadComplete={(url) => form.setValue('gifterMedia.url', url, { shouldValidate: true })}
                         />
+                         <FormField control={form.control} name="gifterMedia.url" render={() => <FormMessage />} />
                     </TabsContent>
                 </Tabs>
             </CardContent>

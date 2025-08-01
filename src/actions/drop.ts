@@ -28,6 +28,7 @@ export async function createDrop(data: Omit<GiftDrop, 'id' | 'createdAt' | 'gift
   const giftsWithIds = data.gifts.map((g, i) => ({ ...g, id: `${docRef.id}-gift-${i}` }));
   await updateDoc(docRef, { gifts: giftsWithIds });
 
+  revalidatePath('/dashboard');
   return { id: docRef.id };
 }
 
@@ -42,8 +43,10 @@ export async function getDrop(id: string): Promise<GiftDrop | null> {
   const data = docSnap.data();
   // Firestore timestamps need to be converted
   const createdAt = (data.createdAt as Timestamp)?.toMillis() || Date.now();
+  const recipientOpenedAt = (data.recipientOpenedAt as Timestamp)?.toMillis();
 
-  return { ...data, id: docSnap.id, createdAt } as GiftDrop;
+
+  return { ...data, id: docSnap.id, createdAt, recipientOpenedAt: recipientOpenedAt || undefined } as GiftDrop;
 }
 
 
@@ -54,7 +57,8 @@ export async function getUserDrops(userId: string): Promise<GiftDrop[]> {
     querySnapshot.forEach((doc) => {
         const data = doc.data();
         const createdAt = (data.createdAt as Timestamp)?.toMillis() || Date.now();
-        drops.push({ ...data, id: doc.id, createdAt } as GiftDrop);
+        const recipientOpenedAt = (data.recipientOpenedAt as Timestamp)?.toMillis();
+        drops.push({ ...data, id: doc.id, createdAt, recipientOpenedAt: recipientOpenedAt || undefined } as GiftDrop);
     });
     return drops.sort((a, b) => b.createdAt - a.createdAt);
 }
@@ -63,7 +67,15 @@ export async function getUserDrops(userId: string): Promise<GiftDrop[]> {
 export async function selectGift(dropId: string, giftId: string): Promise<{ success: boolean }> {
   try {
     const dropRef = doc(db, 'drops', dropId);
-    await updateDoc(dropRef, { selectedGiftId: giftId, recipientOpenedAt: serverTimestamp() });
+    
+    const updateData: any = { recipientOpenedAt: serverTimestamp() };
+    // Only set selectedGiftId if it's not an empty string (used for just marking as opened)
+    if (giftId) {
+        updateData.selectedGiftId = giftId;
+    }
+
+    await updateDoc(dropRef, updateData);
+
     revalidatePath(`/drop/${dropId}`);
     return { success: true };
   } catch (error) {
