@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -12,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send, UploadCloud, Sparkles, ExternalLink, Check } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, UploadCloud, Sparkles, ExternalLink, Check, File as FileIcon, X, RefreshCw, Eye } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
@@ -24,12 +25,13 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { GenerateGiftIdeasOutput } from '@/ai/flows/generate-gift-ideas';
 import { Checkbox } from '@/components/ui/checkbox';
+import { cn } from '@/lib/utils';
 
 const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
   image: z.string().min(1, 'Image URL is required.'),
   platform: z.string().optional(),
-  url: z.string().optional(),
+  url: z.string().url("Must be a valid URL").optional(),
 });
 
 const gifterMediaSchema = z.object({
@@ -60,39 +62,40 @@ const formSchema = z.object({
 type CreateDropFormValues = z.infer<typeof formSchema>;
 type AiSuggestions = GenerateGiftIdeasOutput['gifts'];
 
+type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+
 function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, type: 'card' | 'audio' | 'video') => void; }) {
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-    const [fileUrl, setFileUrl] = useState<string | null>(null);
-    const [fileType, setFileType] = useState<'card' | 'audio' | 'video' | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
+    const [file, setFile] = useState<File | null>(null);
+    const [status, setStatus] = useState<UploadStatus>('idle');
     const { toast } = useToast();
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            handleUpload(file);
+        const selectedFile = event.target.files?.[0];
+        if (selectedFile) {
+            handleUpload(selectedFile);
         }
     };
 
-    const handleUpload = (file: File) => {
-        setIsUploading(true);
-        setFileUrl(null);
-        setFileType(null);
+    const handleUpload = (fileToUpload: File) => {
+        setStatus('uploading');
+        setFile(fileToUpload);
+        setUploadProgress(0);
 
-        const detectedMediaType = file.type.startsWith('image/') ? 'card' :
-                                  file.type.startsWith('audio/') ? 'audio' :
-                                  file.type.startsWith('video/') ? 'video' :
+        const detectedMediaType = fileToUpload.type.startsWith('image/') ? 'card' :
+                                  fileToUpload.type.startsWith('audio/') ? 'audio' :
+                                  fileToUpload.type.startsWith('video/') ? 'video' :
                                   null;
-
+        
         if (!detectedMediaType) {
              toast({ title: 'Unsupported File Type', description: 'Please upload an image, audio, or video file.', variant: 'destructive' });
-             setIsUploading(false);
+             setStatus('error');
              return;
         }
-        
+
         const storage = getStorage();
-        const storageRef = ref(storage, `uploads/${detectedMediaType}/${Date.now()}_${file.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, file);
+        const storageRef = ref(storage, `uploads/${detectedMediaType}/${Date.now()}_${fileToUpload.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
         uploadTask.on('state_changed',
             (snapshot) => {
@@ -102,53 +105,76 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
             (error) => {
                 console.error("Upload failed:", error);
                 toast({ title: 'Upload Failed', description: 'There was an error uploading your file.', variant: 'destructive' });
-                setIsUploading(false);
+                setStatus('error');
                 setUploadProgress(null);
             },
             () => {
                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                    setFileUrl(downloadURL);
-                    setFileType(detectedMediaType);
+                    setStatus('success');
                     onUploadComplete(downloadURL, detectedMediaType);
-                    setIsUploading(false);
-                     toast({ title: 'Upload Complete!', description: 'Your file has been uploaded.' });
+                    toast({ title: 'Upload Complete!', description: 'Your file has been uploaded.' });
                 });
             }
         );
     };
 
+    const reset = () => {
+        setStatus('idle');
+        setFile(null);
+        setUploadProgress(null);
+        onUploadComplete('', 'card'); // Clear form state
+    }
+
+    if (status === 'idle') {
+        return (
+            <label htmlFor="file-upload" className="relative flex flex-col items-center justify-center w-full h-48 border-2 border-dashed rounded-lg cursor-pointer bg-muted/20 hover:bg-muted/50 transition-colors">
+                <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                    <UploadCloud className="w-10 h-10 mb-3 text-muted-foreground" />
+                    <p className="mb-2 text-sm text-muted-foreground"><span className="font-semibold text-primary">Click to upload</span> or drag and drop</p>
+                    <p className="text-xs text-muted-foreground">Image, Audio, or Video (MAX. 10MB)</p>
+                </div>
+                <Input id="file-upload" type="file" className="sr-only" onChange={handleFileChange} accept="image/*,audio/*,video/*" />
+            </label>
+        )
+    }
+
     return (
-        <div className="border-2 border-dashed rounded-lg p-6 text-center space-y-4">
-            {isUploading && uploadProgress !== null ? (
-                <div className='space-y-2'>
-                    <p>Uploading...</p>
-                    <Progress value={uploadProgress} />
+        <div className="w-full p-4 border rounded-lg space-y-3">
+           <div className="flex items-center gap-4">
+                <FileIcon className="h-8 w-8 text-muted-foreground flex-shrink-0" />
+                <div className="flex-grow space-y-1 overflow-hidden">
+                    <p className="text-sm font-medium truncate">{file?.name}</p>
+                    <p className="text-xs text-muted-foreground">{file && (file.size / 1024 / 1024).toFixed(2)} MB</p>
                 </div>
-            ) : fileUrl && fileType ? (
-                <div>
-                    {fileType === 'card' && <Image src={fileUrl} alt="Uploaded preview" width={200} height={200} className='mx-auto rounded-lg' />}
-                    {fileType === 'audio' && <audio controls src={fileUrl} className='w-full' />}
-                    {fileType === 'video' && <video controls src={fileUrl} className='w-full rounded-lg' />}
-                     <Button variant="link" onClick={() => { setFileUrl(null); setFileType(null); onUploadComplete('', 'card')}}>Upload another file</Button>
+                 {status === 'uploading' && <p className="text-sm font-semibold">{uploadProgress?.toFixed(0)}%</p>}
+                 {status === 'success' && <Check className="h-6 w-6 text-green-500" />}
+                 {status === 'error' && <X className="h-6 w-6 text-destructive" />}
+           </div>
+
+           <div className="flex items-center gap-2">
+                <Progress 
+                    value={status === 'success' ? 100 : uploadProgress} 
+                    className={cn({
+                        'h-2': true,
+                        '[&>div]:bg-green-500': status === 'success',
+                        '[&>div]:bg-destructive': status === 'error',
+                    })}
+                />
+           </div>
+
+           {status === 'success' && <p className="text-sm text-green-600">Upload successful!</p>}
+           {status === 'error' && (
+                <div className="flex items-center justify-between">
+                    <p className="text-sm text-destructive">Upload failed! Please try again.</p>
+                    <Button variant="link" size="sm" onClick={() => file && handleUpload(file)}><RefreshCw className="mr-2"/> Try Again</Button>
                 </div>
-            ) : (
-                <>
-                    <UploadCloud className="mx-auto h-12 w-12 text-muted-foreground" />
-                    <p className="text-muted-foreground">Drag & drop or click to upload an image, audio, or video file.</p>
-                    <Input
-                        id="file-upload"
-                        type="file"
-                        className="sr-only"
-                        onChange={handleFileChange}
-                        accept="image/*,audio/*,video/*"
-                    />
-                     <label htmlFor="file-upload" className="cursor-pointer text-primary underline">
-                        Choose a file
-                    </label>
-                </>
-            )}
+           )}
+
+           {status !== 'idle' && (
+                <Button variant="ghost" size="sm" onClick={reset} className="w-full mt-2"><Trash2 className="mr-2" /> Remove</Button>
+           )}
         </div>
-    );
+    )
 }
 
 
@@ -161,6 +187,7 @@ export function CreateDropForm() {
   const [isMoreAiLoading, startMoreAiTransition] = useTransition();
   const [aiPrompt, setAiPrompt] = useState('');
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestions | null>(null);
+  const [isSuggestionsDialogOpen, setIsSuggestionsDialogOpen] = useState(false);
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(new Set());
 
   const form = useForm<CreateDropFormValues>({
@@ -204,6 +231,7 @@ export function CreateDropForm() {
                     setAiSuggestions(gifts);
                     setSelectedSuggestions(new Set());
                 }
+                setIsSuggestionsDialogOpen(true);
             } else {
                  toast({ title: "No new gifts generated", description: "AI couldn't find any more gifts. Try a different prompt.", variant: "destructive" });
             }
@@ -240,8 +268,7 @@ export function CreateDropForm() {
 
     giftsToAdd.forEach(g => append({ ...g, image: g.image || 'https://placehold.co/600x400.png' }));
     toast({ title: "Gifts Added!", description: `${giftsToAdd.length} gifts have been added to your drop.`});
-    setAiSuggestions(null);
-    setSelectedSuggestions(new Set());
+    setIsSuggestionsDialogOpen(false);
   }
 
   async function onSubmit(data: CreateDropFormValues) {
@@ -299,15 +326,22 @@ export function CreateDropForm() {
                 onChange={(e) => setAiPrompt(e.target.value)}
                 rows={4}
              />
-             <Button type="button" onClick={() => handleGenerateGifts(false)} disabled={isAiLoading} className="w-full">
-                {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
-                Generate Gift Ideas
-             </Button>
+             <div className="flex flex-col sm:flex-row gap-2">
+                <Button type="button" onClick={() => handleGenerateGifts(false)} disabled={isAiLoading} className="w-full">
+                    {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                    Generate Gift Ideas
+                </Button>
+                {aiSuggestions && aiSuggestions.length > 0 && (
+                     <Button type="button" variant="outline" onClick={() => setIsSuggestionsDialogOpen(true)} className="w-full">
+                        <Eye className="mr-2 h-4 w-4" /> View Suggestions ({aiSuggestions.length})
+                    </Button>
+                )}
+            </div>
           </CardContent>
         </Card>
 
         {aiSuggestions && (
-            <Dialog open={!!aiSuggestions} onOpenChange={(open) => !open && setAiSuggestions(null)}>
+            <Dialog open={isSuggestionsDialogOpen} onOpenChange={setIsSuggestionsDialogOpen}>
                 <DialogContent className="max-w-3xl">
                     <DialogHeader>
                     <DialogTitle>AI-Generated Gift Ideas</DialogTitle>
@@ -570,3 +604,5 @@ export function CreateDropForm() {
     </Form>
   );
 }
+
+    
