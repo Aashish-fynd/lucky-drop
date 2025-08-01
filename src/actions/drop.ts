@@ -2,7 +2,7 @@
 
 import { collection, addDoc, getDoc, doc, query, where, getDocs, updateDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { GiftDrop } from '@/lib/types';
+import type { Gift, GiftDrop } from '@/lib/types';
 import { revalidatePath } from 'next/cache';
 
 // This is a placeholder, in a real app you'd get the user ID from the session

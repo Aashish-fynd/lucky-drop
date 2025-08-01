@@ -35,7 +35,7 @@ export function ShareCard({ dropId }: { dropId: string }) {
     }).catch(err => {
         toast({
             title: "Error",
-            description: "Could not copy link to clipboard.",
+            description: err.message || "Could not copy link to clipboard.",
             variant: "destructive"
         })
     });

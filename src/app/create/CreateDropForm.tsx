@@ -69,16 +69,16 @@ export function CreateDropForm() {
 
     setIsLoading(true);
     try {
-      const { id } = await createDrop(data, user.uid);
+      const { id } = await createDrop(data as any, user.uid);
       toast({
         title: 'Drop Created!',
         description: 'Your lucky drop is ready to be shared.',
       });
       router.push(`/drop/${id}/share`);
-    } catch (error) {
+    } catch (error:any) {
       toast({
         title: 'Error',
-        description: 'Failed to create the drop. Please try again.',
+        description: error?.message||'Failed to create the drop. Please try again.',
         variant: 'destructive',
       });
       setIsLoading(false);
