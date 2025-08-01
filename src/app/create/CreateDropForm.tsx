@@ -13,7 +13,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send, UploadCloud, Sparkles, ExternalLink, Check, File as FileIcon, X, RefreshCw, Eye, CheckCircle } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, UploadCloud, Sparkles, ExternalLink, Check, File as FileIcon, X, RefreshCw, Eye, CheckCircle, Music, Video, Image as ImageIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
@@ -49,7 +49,6 @@ const formSchema = z.object({
   }),
   gifterMedia: gifterMediaSchema,
 }).refine(data => {
-    // If one of gifterMedia fields is present, both must be.
     if (data.gifterMedia?.url || data.gifterMedia?.type) {
         return !!data.gifterMedia.url && !!data.gifterMedia.type;
     }
@@ -64,11 +63,28 @@ type CreateDropFormValues = z.infer<typeof formSchema>;
 type AiSuggestions = GenerateGiftIdeasOutput['gifts'];
 
 type UploadStatus = 'idle' | 'uploading' | 'success' | 'error';
+type MediaType = 'card' | 'audio' | 'video';
 
-function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, type: 'card' | 'audio' | 'video') => void; }) {
+
+function MediaPreview({ type, url }: { type: MediaType, url: string }) {
+    if (type === 'card') {
+        return <Image src={url} alt="Uploaded Card Preview" width={200} height={150} className="rounded-md object-cover" data-ai-hint="greeting card"/>
+    }
+    if (type === 'audio') {
+        return <audio controls src={url} className="w-full" />
+    }
+    if (type === 'video') {
+        return <video controls src={url} className="w-full rounded-md" />
+    }
+    return null;
+}
+
+
+function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, type: MediaType | '') => void; }) {
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [file, setFile] = useState<File | null>(null);
     const [status, setStatus] = useState<UploadStatus>('idle');
+    const [mediaInfo, setMediaInfo] = useState<{url: string, type: MediaType} | null>(null);
     const { toast } = useToast();
 
     const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -82,8 +98,9 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
         setStatus('uploading');
         setFile(fileToUpload);
         setUploadProgress(0);
+        setMediaInfo(null);
 
-        const detectedMediaType = fileToUpload.type.startsWith('image/') ? 'card' :
+        const detectedMediaType: MediaType | null = fileToUpload.type.startsWith('image/') ? 'card' :
                                   fileToUpload.type.startsWith('audio/') ? 'audio' :
                                   fileToUpload.type.startsWith('video/') ? 'video' :
                                   null;
@@ -94,7 +111,7 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
              return;
         }
 
-        const storage = getStorage(app); // Explicitly pass the app instance
+        const storage = getStorage(app);
         const storageRef = ref(storage, `uploads/${detectedMediaType}/${Date.now()}_${fileToUpload.name}`);
         const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
@@ -112,6 +129,7 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
             () => {
                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
                     setStatus('success');
+                    setMediaInfo({ url: downloadURL, type: detectedMediaType });
                     onUploadComplete(downloadURL, detectedMediaType);
                 });
             }
@@ -122,7 +140,8 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
         setStatus('idle');
         setFile(null);
         setUploadProgress(null);
-        onUploadComplete('', 'card'); // Clear form state
+        setMediaInfo(null);
+        onUploadComplete('', ''); 
     }
 
     return (
@@ -138,8 +157,8 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
                 </label>
             )}
 
-            {file && (
-                 <div className="w-full p-4 border rounded-lg space-y-3 shadow-sm bg-card">
+            {(status !== 'idle' && file) && (
+                 <div className="w-full p-4 border rounded-lg space-y-3 shadow-sm bg-card relative">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-4">
                             <div className={cn('p-2 rounded-full', {
@@ -147,11 +166,14 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
                                 'bg-green-500/10': status === 'success',
                                 'bg-destructive/10': status === 'error',
                             })}>
-                                <FileIcon className={cn('h-6 w-6', {
+                                { status === 'success' && mediaInfo?.type === 'card' && <ImageIcon className="h-6 w-6 text-green-500" /> }
+                                { status === 'success' && mediaInfo?.type === 'audio' && <Music className="h-6 w-6 text-green-500" /> }
+                                { status === 'success' && mediaInfo?.type === 'video' && <Video className="h-6 w-6 text-green-500" /> }
+                                { (status === 'uploading' || status === 'error') && <FileIcon className={cn('h-6 w-6', {
                                     'text-primary': status === 'uploading',
-                                    'text-green-500': status === 'success',
                                     'text-destructive': status === 'error',
-                                })} />
+                                })} /> }
+
                             </div>
                             
                             <div className="flex-grow space-y-1 overflow-hidden">
@@ -165,26 +187,27 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
                         </div>
 
                         {status === 'uploading' && <p className="text-sm font-semibold text-muted-foreground">{uploadProgress?.toFixed(0)}%</p>}
-                        {status === 'success' && <CheckCircle className="h-6 w-6 text-green-500" />}
+                        {status === 'success' && <CheckCircle className="h-6 w-6 text-green-500 flex-shrink-0" />}
                         {status === 'error' && <Button variant="ghost" size="sm" onClick={() => file && handleUpload(file)}><RefreshCw className="mr-2"/> Try Again</Button>}
                     </div>
 
-                    {status !== 'idle' && (
-                        <div className="flex items-center gap-2">
-                                <Progress 
-                                    value={status === 'success' ? 100 : uploadProgress} 
-                                    className={cn({
-                                        'h-2': true,
-                                        '[&>div]:bg-primary': status === 'uploading',
-                                        '[&>div]:bg-green-500': status === 'success',
-                                        '[&>div]:bg-destructive': status === 'error',
-                                    })}
-                                />
+                    {status === 'uploading' && (
+                        <Progress 
+                            value={uploadProgress} 
+                            className='h-2 [&>div]:bg-primary'
+                        />
+                    )}
+
+                    {status === 'success' && mediaInfo && (
+                        <div className='pt-2'>
+                           <MediaPreview type={mediaInfo.type} url={mediaInfo.url} />
                         </div>
                     )}
-                     {(status === 'success' || status === 'error') && (
-                        <Button variant="ghost" size="icon" onClick={reset} className="absolute right-6 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-destructive">
-                            <Trash2 />
+                    
+                    {(status === 'success' || status === 'error') && (
+                        <Button variant="ghost" size="icon" onClick={reset} className="absolute right-2 top-2 text-muted-foreground hover:text-destructive">
+                            <Trash2 className="h-4 w-4"/>
+                            <span className="sr-only">Remove file</span>
                         </Button>
                     )}
                  </div>
@@ -465,7 +488,6 @@ export function CreateDropForm() {
                             form.setValue('gifterMedia.url', url, { shouldValidate: true });
                             form.setValue('gifterMedia.type', type, { shouldValidate: true });
                         } else {
-                            // Clear fields if upload is reset
                             form.setValue('gifterMedia.url', undefined);
                             form.setValue('gifterMedia.type', undefined);
                         }
@@ -618,5 +640,5 @@ export function CreateDropForm() {
         </Button>
       </form>
     </Form>
-  );
-}
+
+    
