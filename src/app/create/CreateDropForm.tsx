@@ -18,6 +18,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
+import { app } from '@/lib/firebase'; // Import the app instance
 import { Progress } from '@/components/ui/progress';
 import { generateGiftIdeasAction } from '@/actions/ai';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -93,7 +94,7 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
              return;
         }
 
-        const storage = getStorage();
+        const storage = getStorage(app); // Explicitly pass the app instance
         const storageRef = ref(storage, `uploads/${detectedMediaType}/${Date.now()}_${fileToUpload.name}`);
         const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
@@ -106,6 +107,7 @@ function FileUploader({ onUploadComplete }: { onUploadComplete: (url: string, ty
                 console.error("Upload failed:", error);
                 setStatus('error');
                 setUploadProgress(null);
+                toast({ title: 'Upload Failed', description: `Error: ${error.code}. Please check console and CORS configuration.`, variant: 'destructive' });
             },
             () => {
                 getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
@@ -618,5 +620,3 @@ export function CreateDropForm() {
     </Form>
   );
 }
-
-    
