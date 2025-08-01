@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useFieldArray, useForm } from 'react-hook-form';
 import * as z from 'zod';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import { Button } from '@/components/ui/button';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
@@ -12,13 +12,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { createDrop } from '@/actions/drop';
-import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon, UploadCloud } from 'lucide-react';
+import { Loader2, Trash2, PlusCircle, Gift, Info, Send, Music, Video, Image as ImageIcon, UploadCloud, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/use-auth';
 import Image from 'next/image';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "firebase/storage";
 import { Progress } from '@/components/ui/progress';
+import { generateGiftIdeasAction } from '@/actions/ai';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const giftSchema = z.object({
   name: z.string().min(1, 'Gift name is required.'),
@@ -123,6 +125,8 @@ export function CreateDropForm() {
   const { toast } = useToast();
   const { user } = useAuth();
   const [isLoading, setIsLoading] = useState(false);
+  const [isAiLoading, startAiTransition] = useTransition();
+  const [aiPrompt, setAiPrompt] = useState('');
 
   const form = useForm<CreateDropFormValues>({
     resolver: zodResolver(formSchema),
@@ -134,12 +138,34 @@ export function CreateDropForm() {
     },
   });
 
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'gifts',
   });
   
   const watchedGifts = form.watch('gifts');
+
+  const handleGenerateGifts = () => {
+    if (!aiPrompt) {
+        toast({ title: "Prompt is empty", description: "Please tell us about the recipient.", variant: "destructive" });
+        return;
+    }
+    startAiTransition(async () => {
+        try {
+            const { gifts } = await generateGiftIdeasAction({ prompt: aiPrompt });
+            if (gifts && gifts.length > 0) {
+                // `replace` will swap out the entire array with the new one
+                replace(gifts);
+                toast({ title: "Gifts Generated!", description: "AI has suggested some gifts for you." });
+            } else {
+                 toast({ title: "No gifts generated", description: "AI couldn't find any gifts. Try a different prompt.", variant: "destructive" });
+            }
+        } catch (error) {
+            console.error("AI Error:", error);
+            toast({ title: "AI Error", description: "Failed to generate gift ideas.", variant: "destructive" });
+        }
+    });
+  }
 
   async function onSubmit(data: CreateDropFormValues) {
     if (!user) {
@@ -252,7 +278,33 @@ export function CreateDropForm() {
 
         <Card>
           <CardHeader>
+            <CardTitle className="flex items-center gap-2"><Sparkles className="text-primary"/> AI Gift Suggestions</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+             <Alert>
+                <Sparkles className="h-4 w-4" />
+                <AlertTitle>How it works</AlertTitle>
+                <AlertDescription>
+                   Describe the person you're giving a gift to, and our AI will suggest some ideas.
+                </AlertDescription>
+            </Alert>
+             <Textarea 
+                placeholder="e.g., My friend loves hiking, reading fantasy novels, and is a big fan of spicy food..."
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                rows={4}
+             />
+             <Button type="button" onClick={handleGenerateGifts} disabled={isAiLoading} className="w-full">
+                {isAiLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Sparkles className="mr-2 h-4 w-4" />}
+                Generate Gift Ideas
+             </Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
             <CardTitle className="flex items-center gap-2"><Gift className="text-primary"/> Gift Options</CardTitle>
+            <FormDescription className="ml-8 -mt-1">Add or edit the AI-generated gifts below.</FormDescription>
           </CardHeader>
           <CardContent className="space-y-6">
             {fields.map((field, index) => (
@@ -304,11 +356,11 @@ export function CreateDropForm() {
                     </div>
                  </div>
 
-                {fields.length > 1 && (
+                
                   <Button type="button" variant="destructive" size="sm" onClick={() => remove(index)} className="w-full">
                     <Trash2 className="mr-2 h-4 w-4" /> Remove Gift
                   </Button>
-                )}
+                
               </div>
             ))}
             {fields.length < 5 && (
@@ -370,8 +422,8 @@ export function CreateDropForm() {
           </CardContent>
         </Card>
         
-        <Button type="submit" className="w-full" size="lg" disabled={isLoading}>
-          {isLoading ? (
+        <Button type="submit" className="w-full" size="lg" disabled={isLoading || isAiLoading}>
+          {isLoading || isAiLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
             'Create Drop'
