@@ -1,4 +1,4 @@
-'use server';
+"use server";
 
 /**
  * @fileOverview Generates a thank you reaction using AI, providing options for audio, video, or selfie.
@@ -8,31 +8,41 @@
  * - GenerateThankYouReactionOutput - The return type for the generateThankYouReaction function.
  */
 
-import {ai} from '@/ai/genkit';
-import {z} from 'genkit';
-import wav from 'wav';
+import { ai } from "@/ai/genkit";
+import { z } from "genkit";
 
 const GenerateThankYouReactionInputSchema = z.object({
-  giftDescription: z.string().describe('The description of the gift received.'),
-  recipientName: z.string().optional().describe('The name of the recipient.'),
+  giftDescription: z.string().describe("The description of the gift received."),
+  recipientName: z.string().optional().describe("The name of the recipient."),
 });
-export type GenerateThankYouReactionInput = z.infer<typeof GenerateThankYouReactionInputSchema>;
+export type GenerateThankYouReactionInput = z.infer<
+  typeof GenerateThankYouReactionInputSchema
+>;
 
 const GenerateThankYouReactionOutputSchema = z.object({
-  message: z.string().describe('The generated thank you message.'),
-  mediaType: z.enum(['audio', 'video', 'selfie']).describe('The suggested media type for the reaction.'),
-  mediaContent: z.string().optional().describe('The actual media content (data URI) if available.'),
+  message: z.string().describe("The generated thank you message."),
+  mediaType: z
+    .enum(["audio", "video", "selfie"])
+    .describe("The suggested media type for the reaction."),
+  mediaContent: z
+    .string()
+    .optional()
+    .describe("The actual media content (data URI) if available."),
 });
-export type GenerateThankYouReactionOutput = z.infer<typeof GenerateThankYouReactionOutputSchema>;
+export type GenerateThankYouReactionOutput = z.infer<
+  typeof GenerateThankYouReactionOutputSchema
+>;
 
-export async function generateThankYouReaction(input: GenerateThankYouReactionInput): Promise<GenerateThankYouReactionOutput> {
+export async function generateThankYouReaction(
+  input: GenerateThankYouReactionInput
+): Promise<GenerateThankYouReactionOutput> {
   return generateThankYouReactionFlow(input);
 }
 
 const thankYouPrompt = ai.definePrompt({
-  name: 'thankYouPrompt',
-  input: {schema: GenerateThankYouReactionInputSchema},
-  output: {schema: GenerateThankYouReactionOutputSchema},
+  name: "thankYouPrompt",
+  input: { schema: GenerateThankYouReactionInputSchema },
+  output: { schema: GenerateThankYouReactionOutputSchema },
   prompt: `You are a helpful assistant that generates thank you messages for gifts.
 
   The recipient, {{{recipientName}}}, received the following gift: {{{giftDescription}}}.
@@ -45,12 +55,12 @@ const thankYouPrompt = ai.definePrompt({
 
 const generateThankYouReactionFlow = ai.defineFlow(
   {
-    name: 'generateThankYouReactionFlow',
+    name: "generateThankYouReactionFlow",
     inputSchema: GenerateThankYouReactionInputSchema,
     outputSchema: GenerateThankYouReactionOutputSchema,
   },
-  async input => {
-    const {output} = await thankYouPrompt(input);
+  async (input) => {
+    const { output } = await thankYouPrompt(input);
     return output!;
   }
 );

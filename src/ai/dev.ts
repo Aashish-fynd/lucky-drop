@@ -1,5 +1,5 @@
-import { config } from 'dotenv';
+import { config } from "dotenv";
 config();
 
-import '@/ai/flows/generate-thank-you-reaction.ts';
-import '@/ai/flows/generate-gift-ideas.ts';
+import "@/ai/flows/generate-thank-you-reaction.ts";
+import "@/ai/flows/generate-gift-ideas.ts";

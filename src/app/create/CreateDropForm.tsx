@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -123,6 +122,37 @@ type AiSuggestions = GenerateGiftIdeasOutput["gifts"];
 type UploadStatus = "idle" | "uploading" | "success" | "error";
 type MediaType = "card" | "audio" | "video";
 
+interface UploadedFile {
+  id: string;
+  file: File;
+  url?: string;
+  type?: MediaType;
+  status: UploadStatus;
+  progress: number;
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) {
+    return `${bytes}b`;
+  } else if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)}kb`;
+  } else if (bytes < 1024 * 1024 * 1024) {
+    return `${(bytes / 1024 / 1024).toFixed(1)}mb`;
+  } else {
+    return `${(bytes / 1024 / 1024 / 1024).toFixed(1)}gb`;
+  }
+}
+
+function getFileStatusText(uploadedFile: UploadedFile): string {
+  if (uploadedFile.status === "success") {
+    return "Upload Successful!";
+  } else if (uploadedFile.status === "error") {
+    return "Upload failed! Please try again.";
+  } else {
+    return formatFileSize(uploadedFile.file.size);
+  }
+}
+
 function MediaPreview({ type, url }: { type: MediaType; url: string }) {
   if (type === "card") {
     return (
@@ -138,47 +168,91 @@ function MediaPreview({ type, url }: { type: MediaType; url: string }) {
     );
   }
   if (type === "audio") {
-    return <audio controls src={url} className="w-full" />;
+    return (
+      <div className="w-full max-w-md mx-auto">
+        <audio controls src={url} className="w-full" />
+      </div>
+    );
   }
   if (type === "video") {
-    return <video controls src={url} className="w-full rounded-md" />;
+    return (
+      <div className="relative w-full aspect-video">
+        <video controls src={url} className="w-full h-full rounded-md" />
+      </div>
+    );
   }
   return null;
 }
 
-
 function FileUploader({
   onUploadComplete,
-  form
+  form,
 }: {
-  onUploadComplete: (url: string, type: MediaType | "") => void;
+  onUploadComplete: (urls: string[], types: MediaType[]) => void;
   form: any;
 }) {
   const { user } = useAuth();
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>("idle");
-  const [mediaInfo, setMediaInfo] = useState<{
-    url: string;
-    type: MediaType;
-  } | null>(null);
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const { toast } = useToast();
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = event.target.files?.[0];
-    if (selectedFile) {
-      handleUpload(selectedFile);
+    const selectedFiles = Array.from(event.target.files || []);
+    const remainingSlots = 5 - uploadedFiles.length;
+
+    if (selectedFiles.length > remainingSlots) {
+      toast({
+        title: "Too Many Files",
+        description: `You can only upload ${remainingSlots} more file${
+          remainingSlots !== 1 ? "s" : ""
+        }. Maximum 5 files total.`,
+        variant: "destructive",
+      });
+      // Only upload the files that fit within the limit
+      selectedFiles.slice(0, remainingSlots).forEach((file) => {
+        handleUpload(file);
+      });
+    } else {
+      selectedFiles.forEach((file) => {
+        handleUpload(file);
+      });
+    }
+
+    // Reset input to allow re-selecting the same files
+    event.target.value = "";
+  };
+
+  const handleDragOver = (event: React.DragEvent) => {
+    event.preventDefault();
+  };
+
+  const handleDrop = (event: React.DragEvent) => {
+    event.preventDefault();
+    const droppedFiles = Array.from(event.dataTransfer.files);
+    const remainingSlots = 5 - uploadedFiles.length;
+
+    if (droppedFiles.length > remainingSlots) {
+      toast({
+        title: "Too Many Files",
+        description: `You can only upload ${remainingSlots} more file${
+          remainingSlots !== 1 ? "s" : ""
+        }. Maximum 5 files total.`,
+        variant: "destructive",
+      });
+      // Only upload the files that fit within the limit
+      droppedFiles.slice(0, remainingSlots).forEach((file) => {
+        handleUpload(file);
+      });
+    } else {
+      droppedFiles.forEach((file) => {
+        handleUpload(file);
+      });
     }
   };
 
   const handleUpload = (fileToUpload: File) => {
-    setStatus("uploading");
-    setFile(fileToUpload);
-    setUploadProgress(0);
-    setMediaInfo(null);
-    form.clearErrors("gifterMedia");
-
-    const detectedMediaType: MediaType | null = fileToUpload.type.startsWith("image/")
+    const detectedMediaType: MediaType | null = fileToUpload.type.startsWith(
+      "image/"
+    )
       ? "card"
       : fileToUpload.type.startsWith("audio/")
       ? "audio"
@@ -192,25 +266,45 @@ function FileUploader({
         description: "Please upload an image, audio, or video file.",
         variant: "destructive",
       });
-      setStatus("error");
       return;
     }
 
-    const uniqueId = Buffer.from(`${Date.now()}_${fileToUpload.name}`).toString("base64");
-    const storage = getStorage(app, process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET);
+    const fileId = `${Date.now()}_${Math.random()}`;
+    const newFile: UploadedFile = {
+      id: fileId,
+      file: fileToUpload,
+      status: "uploading",
+      progress: 0,
+      type: detectedMediaType,
+    };
+
+    setUploadedFiles((prev) => [...prev, newFile]);
+    form.clearErrors("gifterMedia");
+
+    const uniqueId = Buffer.from(`${Date.now()}_${fileToUpload.name}`).toString(
+      "base64"
+    );
+    const storage = getStorage(
+      app,
+      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    );
     const storageRef = ref(storage, `uploads/${user?.uid}/${uniqueId}`);
     const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
 
     uploadTask.on(
       "state_changed",
       (snapshot) => {
-        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadProgress(progress);
+        const progress =
+          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        setUploadedFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, progress } : f))
+        );
       },
       (error) => {
         console.error("Upload failed:", error);
-        setStatus("error");
-        setUploadProgress(null);
+        setUploadedFiles((prev) =>
+          prev.map((f) => (f.id === fileId ? { ...f, status: "error" } : f))
+        );
         toast({
           title: "Upload Failed",
           description: `Error: ${error.code}. Please check console and CORS configuration.`,
@@ -219,144 +313,244 @@ function FileUploader({
       },
       () => {
         getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          setStatus("success");
-          setMediaInfo({ url: downloadURL, type: detectedMediaType });
-          onUploadComplete(downloadURL, detectedMediaType);
+          setUploadedFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileId
+                ? { ...f, status: "success", url: downloadURL, progress: 100 }
+                : f
+            )
+          );
+          updateFormValues();
         });
       }
     );
   };
 
-  const reset = () => {
-    setStatus("idle");
-    setFile(null);
-    setUploadProgress(null);
-    setMediaInfo(null);
-    onUploadComplete("", "");
+  const updateFormValues = () => {
+    // Update form with all successfully uploaded files
+    setTimeout(() => {
+      setUploadedFiles((prev) => {
+        const successfulFiles = prev.filter(
+          (f) => f.status === "success" && f.url && f.type
+        );
+        const urls = successfulFiles.map((f) => f.url!);
+        const types = successfulFiles.map((f) => f.type!);
+
+        if (urls.length > 0) {
+          // For now, we'll just use the first file for the form
+          form.setValue("gifterMedia.url", urls[0], { shouldValidate: true });
+          form.setValue("gifterMedia.type", types[0], { shouldValidate: true });
+        }
+
+        onUploadComplete(urls, types);
+        return prev;
+      });
+    }, 100);
   };
+
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => {
+      const filtered = prev.filter((f) => f.id !== fileId);
+      // Update form if we removed files
+      const successfulFiles = filtered.filter(
+        (f) => f.status === "success" && f.url && f.type
+      );
+      if (successfulFiles.length === 0) {
+        form.setValue("gifterMedia.url", undefined);
+        form.setValue("gifterMedia.type", undefined);
+        form.trigger("gifterMedia");
+        onUploadComplete([], []);
+      } else {
+        const urls = successfulFiles.map((f) => f.url!);
+        const types = successfulFiles.map((f) => f.type!);
+        form.setValue("gifterMedia.url", urls[0], { shouldValidate: true });
+        form.setValue("gifterMedia.type", types[0], { shouldValidate: true });
+        onUploadComplete(urls, types);
+      }
+      return filtered;
+    });
+  };
+
+  const retryUpload = (fileId: string) => {
+    const fileToRetry = uploadedFiles.find((f) => f.id === fileId);
+    if (fileToRetry) {
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId ? { ...f, status: "uploading", progress: 0 } : f
+        )
+      );
+      handleUpload(fileToRetry.file);
+    }
+  };
+
+  const hasFiles = uploadedFiles.length > 0;
 
   return (
     <div className="space-y-4">
-      {status === "idle" && (
+      {/* File Upload Input Area - Hide when limit reached */}
+      {uploadedFiles.length < 5 && (
         <label
           htmlFor="file-upload"
-          className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed rounded-lg cursor-pointer bg-muted/20 hover:bg-muted/50 transition-colors"
+          className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 transition-all duration-200"
+          onDragOver={handleDragOver}
+          onDrop={handleDrop}
         >
-          <div className="p-3 bg-primary/10 rounded-full mb-4">
-            <UploadCloud className="w-8 h-8 text-primary" />
+          <div className="p-4 bg-indigo-100 rounded-full mb-4">
+            <UploadCloud className="w-8 h-8 text-indigo-600" />
           </div>
-          <p className="mb-2 text-sm text-foreground">
-            <span className="font-semibold text-primary">Click to upload</span>{" "}
-            or drag and drop
+
+          <p className="mb-2 text-base text-slate-700">
+            <span className="font-semibold text-indigo-600">
+              Click here to upload
+            </span>{" "}
+            your file or drag and drop.
           </p>
-          <p className="text-xs text-muted-foreground">
-            Image, Audio, or Video (MAX. 10MB)
+          <p className="text-sm text-slate-500">
+            {`Supported files: Images, Audio, Video (10mb each) • ${uploadedFiles.length}/5 files`}
           </p>
+
           <Input
             id="file-upload"
             type="file"
             className="sr-only"
             onChange={handleFileChange}
             accept="image/*,audio/*,video/*"
+            multiple
           />
         </label>
       )}
 
-      {status !== "idle" && file && (
-        <div className="w-full p-4 border rounded-lg space-y-3 shadow-sm bg-card relative">
-          <div className="flex items-start justify-between">
+      {/* Uploaded Files List */}
+      {uploadedFiles.map((uploadedFile) => (
+        <div
+          key={uploadedFile.id}
+          className="w-full p-4 bg-white rounded-2xl shadow-sm border border-gray-200"
+        >
+          <div className="flex items-center justify-between">
+            {/* Left side - File preview and info */}
             <div className="flex items-center gap-4">
-              <div
-                className={cn("p-2 rounded-full", {
-                  "bg-primary/10": status === "uploading",
-                  "bg-green-500/10": status === "success",
-                  "bg-destructive/10": status === "error",
-                })}
-              >
-                {mediaInfo?.type === "card" && (
-                  <ImageIcon className={cn("h-6 w-6", { "text-green-500": status === 'success', "text-primary": status === 'uploading' })} />
-                )}
-                {mediaInfo?.type === "audio" && (
-                  <Music className={cn("h-6 w-6", { "text-green-500": status === 'success', "text-primary": status === 'uploading' })} />
-                )}
-                {mediaInfo?.type === "video" && (
-                  <Video className={cn("h-6 w-6", { "text-green-500": status === 'success', "text-primary": status === 'uploading' })} />
-                )}
-                {!mediaInfo && <FileIcon className={cn("h-6 w-6", { "text-primary": status === "uploading", "text-destructive": status === "error" })} />}
-              </div>
-              <div className="flex-grow space-y-1 overflow-hidden">
-                <p className="text-sm font-medium truncate">{file?.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {status === "success"
-                    ? `Upload Successful! (${(file.size / 1024 / 1024).toFixed(2)} MB)`
-                    : status === "error"
-                    ? "Upload failed! Please try again."
-                    : file && `${(file.size / 1024 / 1024).toFixed(2)} MB`}
+              {uploadedFile.status === "success" &&
+              uploadedFile.url &&
+              uploadedFile.type ? (
+                <Dialog>
+                  <DialogTrigger asChild>
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-green-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                      {uploadedFile.type === "card" ? (
+                        <Image
+                          src={uploadedFile.url}
+                          alt="thumbnail"
+                          width={48}
+                          height={48}
+                          className="object-cover w-full h-full"
+                        />
+                      ) : uploadedFile.type === "video" ? (
+                        <Video className="h-6 w-6 text-green-600" />
+                      ) : (
+                        <Music className="h-6 w-6 text-green-600" />
+                      )}
+                    </div>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="text-left">
+                        {uploadedFile.file.name}
+                      </DialogTitle>
+                      <DialogDescription className="text-left">
+                        {formatFileSize(uploadedFile.file.size)} •{" "}
+                        {uploadedFile.type === "card"
+                          ? "Image"
+                          : uploadedFile.type === "video"
+                          ? "Video"
+                          : "Audio"}
+                      </DialogDescription>
+                    </DialogHeader>
+                    <MediaPreview
+                      type={uploadedFile.type}
+                      url={uploadedFile.url}
+                    />
+                  </DialogContent>
+                </Dialog>
+              ) : (
+                <div className="w-12 h-12 rounded-lg overflow-hidden bg-green-100 flex items-center justify-center">
+                  {uploadedFile.type === "card" ? (
+                    <ImageIcon className="h-6 w-6 text-green-600" />
+                  ) : uploadedFile.type === "video" ? (
+                    <Video className="h-6 w-6 text-green-600" />
+                  ) : uploadedFile.type === "audio" ? (
+                    <Music className="h-6 w-6 text-green-600" />
+                  ) : (
+                    <FileIcon className="h-6 w-6 text-green-600" />
+                  )}
+                </div>
+              )}
+              <div>
+                <p className="text-base font-medium text-gray-900 truncate max-w-[300px]">
+                  {uploadedFile.file.name}
+                </p>
+                <p className="text-sm text-gray-500 mt-1">
+                  {getFileStatusText(uploadedFile)}
                 </p>
               </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              {status === "success" && (
-                <div className="group relative">
-                  <CheckCircle className="h-6 w-6 text-green-500" />
-                  <button onClick={reset} className="absolute inset-0 flex items-center justify-center bg-destructive rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Trash2 className="h-4 w-4 text-destructive-foreground" />
-                  </button>
+
+            {/* Right side - Status and actions */}
+            <div className="flex items-center gap-4">
+              {uploadedFile.status === "success" && (
+                <div className="flex items-center gap-2">
+                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
+                    <Check className="h-3 w-3 text-white" />
+                  </div>
                 </div>
               )}
-               {status === "error" && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => file && handleUpload(file)}
-                  >
-                    <RefreshCw className="mr-2 h-4 w-4" /> Try Again
-                  </Button>
+
+              {uploadedFile.status === "uploading" && (
+                <span className="text-sm font-medium text-gray-900">
+                  {uploadedFile.progress.toFixed(0)}%
+                </span>
               )}
+
+              {uploadedFile.status === "error" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => retryUpload(uploadedFile.id)}
+                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                >
+                  <RefreshCw className="mr-2 h-4 w-4" /> Try Again
+                </Button>
+              )}
+
+              <button
+                onClick={() => removeFile(uploadedFile.id)}
+                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
             </div>
           </div>
 
-          {status === "uploading" && (
-            <div className="flex items-center gap-3">
-              <Progress value={uploadProgress} className="h-2 flex-1" />
-              <span className="text-xs font-medium text-muted-foreground">{uploadProgress?.toFixed(0)}%</span>
+          {/* Progress Bar - Only show during upload and error, NOT for success */}
+          {uploadedFile.status === "uploading" && (
+            <div className="mt-4">
+              <div className="w-full h-2 bg-gray-200 rounded-full">
+                <div
+                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                  style={{ width: `${uploadedFile.progress}%` }}
+                />
+              </div>
             </div>
           )}
 
-          {status === 'success' && mediaInfo && (
-            <Dialog>
-              <DialogTrigger asChild>
-                 <div className="relative w-24 h-24 mt-2 cursor-pointer group">
-                  {mediaInfo.type === 'card' ? (
-                     <Image src={mediaInfo.url} alt="thumbnail" fill className="object-cover rounded-md"/>
-                  ) : (
-                    <div className="w-full h-full bg-muted rounded-md flex items-center justify-center">
-                       {mediaInfo.type === 'video' ? <Video className="w-8 h-8 text-muted-foreground"/> : <Music className="w-8 h-8 text-muted-foreground"/>}
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity rounded-md">
-                      <Eye className="w-6 h-6 text-white"/>
-                  </div>
-                </div>
-              </DialogTrigger>
-              <DialogContent className="max-w-2xl">
-                  <MediaPreview type={mediaInfo.type} url={mediaInfo.url} />
-              </DialogContent>
-            </Dialog>
-          )}
-
-           {(status === 'error') && (
-            <button onClick={reset} className="absolute top-2 right-2 text-muted-foreground hover:text-destructive">
-               <Trash2 className="h-4 w-4" />
-            </button>
+          {uploadedFile.status === "error" && (
+            <div className="mt-4">
+              <div className="w-full h-2 bg-red-500 rounded-full"></div>
+            </div>
           )}
         </div>
-      )}
+      ))}
     </div>
   );
 }
-
 
 export function CreateDropForm() {
   const router = useRouter();
@@ -417,6 +611,7 @@ export function CreateDropForm() {
         const { gifts } = await generateGiftIdeasAction({
           prompt: aiPrompt,
           existingGiftNames,
+          maxResults: 20,
         });
 
         if (gifts && gifts.length > 0) {
@@ -718,12 +913,13 @@ export function CreateDropForm() {
           <CardContent>
             <FileUploader
               form={form}
-              onUploadComplete={(url, type) => {
-                if (url && type) {
-                  form.setValue("gifterMedia.url", url, {
+              onUploadComplete={(urls, types) => {
+                if (urls.length > 0 && types.length > 0) {
+                  // For now, just use the first uploaded file
+                  form.setValue("gifterMedia.url", urls[0], {
                     shouldValidate: true,
                   });
-                  form.setValue("gifterMedia.type", type, {
+                  form.setValue("gifterMedia.type", types[0], {
                     shouldValidate: true,
                   });
                 } else {
@@ -744,7 +940,6 @@ export function CreateDropForm() {
             />
           </CardContent>
         </Card>
-
 
         <Card>
           <CardHeader>
