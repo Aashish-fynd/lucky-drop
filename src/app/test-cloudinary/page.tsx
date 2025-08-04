@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { uploadFileWithProgress } from '@/lib/upload-with-progress';
+import { uploadToCloudinary } from '@/actions/cloudinary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -25,13 +25,7 @@ export default function TestCloudinaryPage() {
     setResult('Uploading...');
 
     try {
-      const { url, publicId } = await uploadFileWithProgress(
-        file,
-        'test-user',
-        (progressData) => {
-          setResult(`Uploading... ${progressData.progress}%`);
-        }
-      );
+      const { url, publicId } = await uploadToCloudinary(file, 'test-user');
 
       setResult(`✅ Upload successful!\nURL: ${url}\nPublic ID: ${publicId}`);
     } catch (error) {

@@ -32,11 +32,11 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 ## Features
 
-### Server-Side Uploads with Real Progress
+### Server-Side Uploads
 - Secure server-side uploads using Cloudinary SDK
-- **Real-time progress tracking** using Server-Sent Events
 - No client-side API keys or upload presets needed
-- Better security and reliability with actual upload progress
+- Better security and reliability
+- Simple and straightforward implementation
 
 ### Automatic Image Optimization
 - Images are automatically optimized using Cloudinary's URL transformations
@@ -59,10 +59,9 @@ The system automatically applies URL transformations for:
 The integration is transparent to the user. All existing functionality works the same way:
 
 1. **Upload Files**: Drag and drop or click to upload
-2. **Real Progress**: See actual upload progress in real-time
-3. **Preview Files**: Click on thumbnails to view full-size previews
-4. **Delete Files**: Click the trash icon to remove files
-5. **Retry Uploads**: Failed uploads can be retried
+2. **Preview Files**: Click on thumbnails to view full-size previews
+3. **Delete Files**: Click the trash icon to remove files
+4. **Retry Uploads**: Failed uploads can be retried
 
 ## Migration from Firebase Storage
 
@@ -75,9 +74,8 @@ If you have existing files in Firebase Storage:
 
 - **Faster Loading**: CDN delivery and optimized images
 - **Reduced Bandwidth**: Automatic compression and format optimization
-- **Better UX**: Progressive loading and responsive images with real progress tracking
+- **Better UX**: Progressive loading and responsive images
 - **Scalability**: Cloudinary's global CDN infrastructure
-- **Real Progress**: Actual upload progress instead of simulated progress bars
 
 ## Troubleshooting
 
