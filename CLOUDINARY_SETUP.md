@@ -22,12 +22,18 @@ CLOUDINARY_API_SECRET=your_api_secret
    - Go to your Cloudinary Dashboard
    - Copy your Cloud Name and API Secret (for server-side operations)
 
-3. **Create an Upload Preset**:
+3. **Create an Upload Preset** (This is your upload token):
    - Go to Settings > Upload
    - Scroll down to "Upload presets"
    - Click "Add upload preset"
-   - Set signing mode to "Unsigned" for client-side uploads
-   - Save the preset name (default: `ml_default`)
+   - Set signing mode to "**Unsigned**" for client-side uploads
+   - Set folder to "uploads" (optional, for organization)
+   - Save the preset name (e.g., `ml_default`)
+   - **Important**: The preset name acts as your upload token for unsigned uploads
+
+4. **Test Your Setup**:
+   - Visit `/test-cloudinary` in your app to test the upload functionality
+   - This will verify your environment variables and upload preset are working correctly
 
 ## Features
 
@@ -74,3 +80,19 @@ If you have existing files in Firebase Storage:
 - **Reduced Bandwidth**: Automatic compression and format optimization
 - **Better UX**: Progressive loading and responsive images
 - **Scalability**: Cloudinary's global CDN infrastructure
+
+## Troubleshooting
+
+### Upload Fails
+1. **Check Environment Variables**: Ensure `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` are set
+2. **Verify Upload Preset**: Make sure the preset is set to "Unsigned" mode
+3. **Test Configuration**: Use the `/test-cloudinary` page to verify your setup
+
+### Common Errors
+- **"Upload preset not found"**: Check that the preset name matches exactly
+- **"Invalid signature"**: This shouldn't happen with unsigned uploads
+- **"Cloud name not found"**: Verify your cloud name is correct
+
+### Security Notes
+- Upload presets for unsigned uploads are safe to expose in client-side code
+- Only the API secret needs to be kept private (used only for server-side deletion)

@@ -1,5 +1,15 @@
 // Cloudinary configuration and utilities using REST API only
 
+// Validate required environment variables
+const validateCloudinaryConfig = () => {
+  if (!process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME) {
+    throw new Error('NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME is required');
+  }
+  if (!process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error('NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET is required');
+  }
+};
+
 // Utility function to upload file to Cloudinary with real progress tracking
 export const uploadToCloudinary = (
   file: File, 
@@ -7,9 +17,16 @@ export const uploadToCloudinary = (
   onProgress?: (progress: number) => void
 ): Promise<{ url: string; publicId: string }> => {
   return new Promise((resolve, reject) => {
+    try {
+      validateCloudinaryConfig();
+    } catch (error) {
+      reject(error);
+      return;
+    }
+
     const formData = new FormData();
     formData.append('file', file);
-    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'ml_default');
+    formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!);
     formData.append('folder', `uploads/${userId}`);
 
     const xhr = new XMLHttpRequest();
@@ -143,5 +160,16 @@ export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
   } catch (error) {
     console.error('Error deleting file from Cloudinary:', error);
     throw error;
+  }
+};
+
+// Test function to verify Cloudinary configuration
+export const testCloudinaryConfig = async (): Promise<boolean> => {
+  try {
+    validateCloudinaryConfig();
+    return true;
+  } catch (error) {
+    console.error('Cloudinary configuration error:', error);
+    return false;
   }
 };
