@@ -32,10 +32,8 @@ import {
   ExternalLink,
   Check,
   File as FileIcon,
-  X,
   RefreshCw,
   Eye,
-  CheckCircle,
   Music,
   Video,
   Image as ImageIcon,
@@ -45,16 +43,9 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Image from "next/image";
-import {
-  getStorage,
-  ref,
-  uploadBytesResumable,
-  getDownloadURL,
-} from "firebase/storage";
-import { app } from "@/lib/firebase";
-import { Progress } from "@/components/ui/progress";
+import { getOptimizedImageUrl } from "@/lib/cloudinary";
+import { uploadToCloudinary, deleteFromCloudinary } from "@/actions/cloudinary";
 import { generateGiftIdeasAction } from "@/actions/ai";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
   Dialog,
   DialogContent,
@@ -68,7 +59,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GenerateGiftIdeasOutput } from "@/ai/flows/generate-gift-ideas";
 import { Checkbox } from "@/components/ui/checkbox";
-import { cn } from "@/lib/utils";
+
 
 const giftSchema = z.object({
   name: z.string().min(1, "Gift name is required."),
@@ -135,6 +126,7 @@ interface UploadedFile {
   type?: MediaType;
   status: UploadStatus;
   progress: number;
+  publicId?: string;
 }
 
 function formatFileSize(bytes: number): string {
@@ -161,10 +153,18 @@ function getFileStatusText(uploadedFile: UploadedFile): string {
 
 function MediaPreview({ type, url }: { type: MediaType; url: string }) {
   if (type === "card") {
+    // Use Cloudinary URL transformation for responsive images
+    const optimizedUrl = getOptimizedImageUrl(url, { 
+      width: 400, 
+      height: 300, 
+      crop: 'fill',
+      quality: 80 
+    });
+    
     return (
       <div className="relative w-full h-48 rounded-lg overflow-hidden">
         <Image
-          src={url}
+          src={optimizedUrl}
           alt="Uploaded card"
           fill
           className="object-cover"
@@ -259,7 +259,7 @@ function FileUploader({
     }
   };
 
-  const handleUpload = (fileToUpload: File) => {
+  const handleUpload = async (fileToUpload: File) => {
     const detectedMediaType: MediaType | null = fileToUpload.type.startsWith(
       "image/"
     )
@@ -291,49 +291,31 @@ function FileUploader({
     setUploadedFiles((prev) => [...prev, newFile]);
     form.clearErrors("gifterMedia");
 
-    const uniqueId = Buffer.from(`${Date.now()}_${fileToUpload.name}`).toString(
-      "base64"
-    );
-    const storage = getStorage(
-      app,
-      process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    );
-    const storageRef = ref(storage, `uploads/${user?.uid}/${uniqueId}`);
-    const uploadTask = uploadBytesResumable(storageRef, fileToUpload);
+    try {
+      // Upload to Cloudinary using server action
+      const { url, publicId } = await uploadToCloudinary(fileToUpload, user?.uid || 'anonymous');
 
-    uploadTask.on(
-      "state_changed",
-      (snapshot) => {
-        const progress =
-          (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-        setUploadedFiles((prev) =>
-          prev.map((f) => (f.id === fileId ? { ...f, progress } : f))
-        );
-      },
-      (error) => {
-        console.error("Upload failed:", error);
-        setUploadedFiles((prev) =>
-          prev.map((f) => (f.id === fileId ? { ...f, status: "error" } : f))
-        );
-        toast({
-          title: "Upload Failed",
-          description: `Error: ${error.code}. Please check console and CORS configuration.`,
-          variant: "destructive",
-        });
-      },
-      () => {
-        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-          setUploadedFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileId
-                ? { ...f, status: "success", url: downloadURL, progress: 100 }
-                : f
-            )
-          );
-          updateFormValues();
-        });
-      }
-    );
+      // Update file status to success
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? { ...f, status: "success", url, progress: 100, publicId }
+            : f
+        )
+      );
+
+      updateFormValues();
+    } catch (error) {
+      console.error("Upload failed:", error);
+      setUploadedFiles((prev) =>
+        prev.map((f) => (f.id === fileId ? { ...f, status: "error" } : f))
+      );
+      toast({
+        title: "Upload Failed",
+        description: `Error: ${error instanceof Error ? error.message : 'Unknown error'}. Please try again.`,
+        variant: "destructive",
+      });
+    }
   };
 
   const updateFormValues = () => {
@@ -358,7 +340,19 @@ function FileUploader({
     }, 100);
   };
 
-  const removeFile = (fileId: string) => {
+  const removeFile = async (fileId: string) => {
+    const fileToRemove = uploadedFiles.find((f) => f.id === fileId);
+    
+    // Delete from Cloudinary if file was successfully uploaded
+    if (fileToRemove?.publicId && fileToRemove.status === "success") {
+      try {
+        await deleteFromCloudinary(fileToRemove.publicId);
+      } catch (error) {
+        console.error('Failed to delete file from Cloudinary:', error);
+        // Continue with local removal even if Cloudinary deletion fails
+      }
+    }
+
     setUploadedFiles((prev) => {
       const filtered = prev.filter((f) => f.id !== fileId);
       // Update form if we removed files
@@ -447,7 +441,12 @@ function FileUploader({
                     <div className="w-12 h-12 rounded-lg overflow-hidden bg-green-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
                       {uploadedFile.type === "card" ? (
                         <Image
-                          src={uploadedFile.url}
+                          src={getOptimizedImageUrl(uploadedFile.url, { 
+                            width: 48, 
+                            height: 48, 
+                            crop: 'fill',
+                            quality: 70 
+                          })}
                           alt="thumbnail"
                           width={48}
                           height={48}
