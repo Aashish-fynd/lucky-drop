@@ -44,7 +44,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Image from "next/image";
 import { getOptimizedImageUrl } from "@/lib/cloudinary";
-import { uploadToCloudinary, deleteFromCloudinary } from "@/actions/cloudinary";
+import { deleteFromCloudinary } from "@/actions/cloudinary";
+import { uploadFileWithProgress } from "@/lib/upload-with-progress";
 import { generateGiftIdeasAction } from "@/actions/ai";
 import {
   Dialog,
@@ -292,22 +293,20 @@ function FileUploader({
     form.clearErrors("gifterMedia");
 
     try {
-      // Simulate progress for server-side upload
-      const progressInterval = setInterval(() => {
-        setUploadedFiles((prev) =>
-          prev.map((f) => {
-            if (f.id === fileId && f.progress < 90) {
-              return { ...f, progress: f.progress + Math.random() * 10 };
-            }
-            return f;
-          })
-        );
-      }, 200);
-
-      // Upload to Cloudinary using server action
-      const { url, publicId } = await uploadToCloudinary(fileToUpload, user?.uid || 'anonymous');
-
-      clearInterval(progressInterval);
+      // Upload to Cloudinary with real progress tracking
+      const { url, publicId } = await uploadFileWithProgress(
+        fileToUpload,
+        user?.uid || 'anonymous',
+        (progressData) => {
+          setUploadedFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileId
+                ? { ...f, progress: progressData.progress }
+                : f
+            )
+          );
+        }
+      );
 
       // Update file status to success
       setUploadedFiles((prev) =>
