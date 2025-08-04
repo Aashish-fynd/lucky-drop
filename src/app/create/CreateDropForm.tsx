@@ -174,23 +174,29 @@ function MediaPreview({ type, url }: { type: MediaType; url: string }) {
     );
   } else if (type === "audio") {
     return (
-      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-          <Volume2 className="w-6 h-6 text-white" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium">Audio Message</p>
-          <p className="text-xs text-gray-500">Click to play</p>
-        </div>
-      </div>
+                    <Card className="border-0 shadow-none bg-muted">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+                    <Volume2 className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Audio Message</p>
+                    <p className="text-xs text-muted-foreground">Click to play</p>
+                  </div>
+                </CardContent>
+              </Card>
     );
   } else if (type === "video") {
-    return (
-      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gray-100">
-        <video src={url} controls className="w-full h-full object-cover" />
-      </div>
-    );
-  }
+          return (
+        <Card className="border-0 shadow-none">
+          <CardContent className="p-0">
+            <div className="relative w-full h-48 rounded-lg overflow-hidden bg-muted">
+              <video src={url} controls className="w-full h-full object-cover" />
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
   return null;
 }
 
@@ -393,44 +399,44 @@ function FileUploader({
     <div className="space-y-4">
       {/* File Upload Input Area - Hide when limit reached */}
       {uploadedFiles.length < 5 && (
-        <label
-          htmlFor="file-upload"
-          className="relative flex flex-col items-center justify-center w-full p-8 border-2 border-dashed border-slate-300 rounded-2xl cursor-pointer bg-gradient-to-br from-indigo-50 to-purple-50 hover:from-indigo-100 hover:to-purple-100 transition-all duration-200"
-          onDragOver={handleDragOver}
-          onDrop={handleDrop}
-        >
-          <div className="p-4 bg-indigo-100 rounded-full mb-4">
-            <UploadCloud className="w-8 h-8 text-indigo-600" />
-          </div>
+        <Card className="border-2 border-dashed">
+          <label
+            htmlFor="file-upload"
+            className="relative flex flex-col items-center justify-center w-full p-8 cursor-pointer hover:bg-accent/5 transition-colors duration-200 rounded-lg"
+            onDragOver={handleDragOver}
+            onDrop={handleDrop}
+          >
+            <div className="p-4 bg-primary/10 rounded-full mb-4">
+              <UploadCloud className="w-8 h-8 text-primary" />
+            </div>
 
-          <p className="mb-2 text-base text-slate-700">
-            <span className="font-semibold text-indigo-600">
-              Click here to upload
-            </span>{" "}
-            your file or drag and drop.
-          </p>
-          <p className="text-sm text-slate-500">
-            {`Supported files: Images, Audio, Video (10mb each) • ${uploadedFiles.length}/5 files`}
-          </p>
+            <p className="mb-2 text-base text-foreground">
+              <span className="font-semibold text-primary">
+                Click here to upload
+              </span>{" "}
+              your file or drag and drop.
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {`Supported files: Images, Audio, Video (10mb each) • ${uploadedFiles.length}/5 files`}
+            </p>
 
-          <Input
-            id="file-upload"
-            type="file"
-            className="sr-only"
-            onChange={handleFileChange}
-            accept="image/*,audio/*,video/*"
-            multiple
-          />
-        </label>
+                      <Input
+              id="file-upload"
+              type="file"
+              className="sr-only"
+              onChange={handleFileChange}
+              accept="image/*,audio/*,video/*"
+              multiple
+            />
+          </label>
+        </Card>
       )}
 
       {/* Uploaded Files List */}
       {uploadedFiles.map((uploadedFile) => (
-        <div
-          key={uploadedFile.id}
-          className="w-full p-4 bg-white rounded-2xl shadow-sm border border-gray-200"
-        >
-          <div className="flex items-center justify-between">
+        <Card key={uploadedFile.id}>
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between">
             {/* Left side - File preview and info */}
             <div className="flex items-center gap-4">
               {uploadedFile.status === "success" &&
@@ -438,7 +444,7 @@ function FileUploader({
               uploadedFile.type ? (
                 <Dialog>
                   <DialogTrigger asChild>
-                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-green-100 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
+                    <div className="w-12 h-12 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center cursor-pointer hover:opacity-80 transition-opacity">
                       {uploadedFile.type === "card" ? (
                         <Image
                           src={getOptimizedImageUrl(uploadedFile.url, { 
@@ -453,9 +459,9 @@ function FileUploader({
                           className="object-cover w-full h-full"
                         />
                       ) : uploadedFile.type === "video" ? (
-                        <Video className="h-6 w-6 text-green-600" />
+                        <Video className="h-6 w-6 text-primary" />
                       ) : (
-                        <Music className="h-6 w-6 text-green-600" />
+                        <Music className="h-6 w-6 text-primary" />
                       )}
                     </div>
                   </DialogTrigger>
@@ -480,23 +486,23 @@ function FileUploader({
                   </DialogContent>
                 </Dialog>
               ) : (
-                <div className="w-12 h-12 rounded-lg overflow-hidden bg-green-100 flex items-center justify-center">
-                  {uploadedFile.type === "card" ? (
-                    <ImageIcon className="h-6 w-6 text-green-600" />
-                  ) : uploadedFile.type === "video" ? (
-                    <Video className="h-6 w-6 text-green-600" />
-                  ) : uploadedFile.type === "audio" ? (
-                    <Music className="h-6 w-6 text-green-600" />
-                  ) : (
-                    <FileIcon className="h-6 w-6 text-green-600" />
+                                            <div className="w-12 h-12 rounded-lg overflow-hidden bg-primary/10 flex items-center justify-center">
+                              {uploadedFile.type === "card" ? (
+                                <ImageIcon className="h-6 w-6 text-primary" />
+                              ) : uploadedFile.type === "video" ? (
+                                <Video className="h-6 w-6 text-primary" />
+                              ) : uploadedFile.type === "audio" ? (
+                                <Music className="h-6 w-6 text-primary" />
+                              ) : (
+                                <FileIcon className="h-6 w-6 text-primary" />
                   )}
                 </div>
               )}
               <div>
-                <p className="text-base font-medium text-gray-900 truncate max-w-[300px]">
+                                            <p className="text-base font-medium text-foreground truncate max-w-[300px]">
                   {uploadedFile.file.name}
                 </p>
-                <p className="text-sm text-gray-500 mt-1">
+                                  <p className="text-sm text-muted-foreground mt-1">
                   {getFileStatusText(uploadedFile)}
                 </p>
               </div>
@@ -506,14 +512,14 @@ function FileUploader({
             <div className="flex items-center gap-4">
               {uploadedFile.status === "success" && (
                 <div className="flex items-center gap-2">
-                  <div className="w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                    <Check className="h-3 w-3 text-white" />
+                                        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center">
+                        <Check className="h-3 w-3 text-primary-foreground" />
                   </div>
                 </div>
               )}
 
               {uploadedFile.status === "uploading" && (
-                <span className="text-sm font-medium text-gray-900">
+                                          <span className="text-sm font-medium text-foreground">
                   {uploadedFile.progress.toFixed(0)}%
                 </span>
               )}
@@ -523,7 +529,7 @@ function FileUploader({
                   variant="ghost"
                   size="sm"
                   onClick={() => retryUpload(uploadedFile.id)}
-                  className="text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                                      className="text-primary hover:text-primary/80 hover:bg-primary/5"
                 >
                   <RefreshCw className="mr-2 h-4 w-4" /> Try Again
                 </Button>
@@ -531,7 +537,7 @@ function FileUploader({
 
               <button
                 onClick={() => removeFile(uploadedFile.id)}
-                className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+                                  className="p-2 text-muted-foreground hover:text-foreground hover:bg-accent rounded-lg transition-colors"
               >
                 <Trash2 className="h-5 w-5" />
               </button>
@@ -541,9 +547,9 @@ function FileUploader({
           {/* Progress Bar - Only show during upload and error, NOT for success */}
           {uploadedFile.status === "uploading" && (
             <div className="mt-4">
-              <div className="w-full h-2 bg-gray-200 rounded-full">
+              <div className="w-full h-2 bg-muted rounded-full">
                 <div
-                  className="h-full bg-blue-600 rounded-full transition-all duration-300"
+                                      className="h-full bg-primary rounded-full transition-all duration-300"
                   style={{ width: `${uploadedFile.progress}%` }}
                 />
               </div>
@@ -552,10 +558,11 @@ function FileUploader({
 
           {uploadedFile.status === "error" && (
             <div className="mt-4">
-              <div className="w-full h-2 bg-red-500 rounded-full"></div>
+              <div className="w-full h-2 bg-destructive rounded-full"></div>
             </div>
           )}
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );
@@ -788,38 +795,40 @@ export function CreateDropForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         {/* Modern AI Gift Suggestions Section */}
-        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200">
-          {/* Header */}
-          <div className="mb-8">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Hi there,{" "}
-              <span className="bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
-                {user?.displayName || "Friend"}
-              </span>
-            </h2>
-            <h3 className="text-3xl font-bold text-gray-900 mb-2">
-              What gift would you{" "}
-              <span className="bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
-                like to find?
-              </span>
-            </h3>
-            <p className="text-gray-600 text-sm">
-              Describe the person you're giving a gift to, and our AI will
-              suggest real gift ideas from popular online stores
+        <Card>
+          <CardContent className="p-8">
+            {/* Header */}
+            <div className="mb-8">
+              <h2 className="text-2xl font-bold mb-2">
+                Hi there,{" "}
+                <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  {user?.displayName || "Friend"}
+                </span>
+              </h2>
+              <h3 className="text-3xl font-bold mb-2">
+                What gift would you{" "}
+                <span className="bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                  like to find?
+                </span>
+              </h3>
+              <p className="text-muted-foreground text-sm">
+                Describe the person you're giving a gift to, and our AI will
+                suggest real gift ideas from popular online stores
             </p>
           </div>
 
-          {/* Input Area */}
-          <div className="relative">
-            <div className="bg-white rounded-xl border-2 border-purple-200 shadow-sm p-4">
-              <div className="relative">
+            {/* Input Area */}
+            <div className="relative">
+              <Card className="border-2 border-primary/20">
+                <CardContent className="p-4">
+                  <div className="relative">
                 <Textarea
                   placeholder={`${examplePrompts[currentExampleIndex]} `}
                   value={aiPrompt}
                   onChange={(e) => setAiPrompt(e.target.value)}
                   onKeyDown={handleTabKey}
                   rows={3}
-                  className={`!border-0 !p-0 resize-none !focus:ring-0 !focus:border-0 text-sm placeholder:text-gray-400 !outline-none !ring-0 !ring-offset-0 rounded-none pr-12 ${
+                  className={`border-0 p-0 resize-none focus:ring-0 focus:border-0 text-sm placeholder:text-muted-foreground outline-none ring-0 ring-offset-0 rounded-none pr-12 ${
                     isTransitioning
                       ? "transform translate-y-1 opacity-0 transition-all duration-150 ease-out"
                       : "transform -translate-y-1 opacity-100 transition-all duration-300 ease-in"
@@ -829,7 +838,7 @@ export function CreateDropForm() {
 
               {aiPrompt.trim() === "" && (
                 <div className="flex">
-                  <span className="inline-flex items-center gap-1 px-1 py-0.5 bg-purple-50 text-purple-600 text-xs font-medium rounded border border-purple-100 opacity-80 transition-all duration-300">
+                  <span className="inline-flex items-center gap-1 px-1 py-0.5 bg-primary/10 text-primary text-xs font-medium rounded border border-primary/20 opacity-80 transition-all duration-300">
                     <Keyboard className="w-3 h-3" />
                     Press tab to use the example
                   </span>
@@ -837,9 +846,9 @@ export function CreateDropForm() {
               )}
 
               {/* Input Controls */}
-              <div className="flex items-center justify-between border-gray-100">
+              <div className="flex items-center justify-between border-border">
                 <div className="flex items-center gap-4">
-                  <span className="text-xs text-gray-400">
+                  <span className="text-xs text-muted-foreground">
                     {aiPrompt.length}/1000
                   </span>
                 </div>
@@ -852,8 +861,8 @@ export function CreateDropForm() {
                         : "opacity-0 pointer-events-none"
                     }`}
                   >
-                    <Loader2 className="w-3 h-3 animate-spin text-purple-600" />
-                    <span className="text-xs text-purple-600">
+                                          <Loader2 className="w-3 h-3 animate-spin text-primary" />
+                      <span className="text-xs text-primary">
                       {loadingMessages[currentLoadingMessageIndex]}
                     </span>
                   </div>
@@ -861,13 +870,13 @@ export function CreateDropForm() {
                     type="button"
                     onClick={() => handleGenerateGifts(false)}
                     disabled={isAiLoading}
-                    className={`w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 p-0 flex items-center justify-center transition-all duration-300 ${
+                    className={`w-10 h-10 rounded-full bg-primary hover:bg-primary/90 p-0 flex items-center justify-center transition-all duration-300 ${
                       isAiLoading
                         ? "opacity-0 pointer-events-none"
                         : "opacity-100"
                     }`}
                   >
-                    <Sparkles className="w-5 h-5 text-white" />
+                    <Sparkles className="w-5 h-5 text-primary-foreground" />
                   </Button>
                 </div>
               </div>
@@ -881,14 +890,18 @@ export function CreateDropForm() {
                 type="button"
                 variant="outline"
                 onClick={() => setIsSuggestionsDialogOpen(true)}
-                className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors hover:text-purple-600"
+                className="w-full border-primary/20 text-primary hover:bg-primary/5 transition-colors"
               >
                 <Eye className="mr-2 h-4 w-4" />
                 View Suggestions ({aiSuggestions.length})
               </Button>
             </div>
           )}
-        </div>
+                </CardContent>
+              </Card>
+            </div>
+          </CardContent>
+        </Card>
 
         {aiSuggestions && (
           <Dialog
@@ -906,11 +919,12 @@ export function CreateDropForm() {
               <ScrollArea className="h-[50vh]">
                 <div className="space-y-4">
                   {aiSuggestions.map((gift, index) => (
-                    <div
+                    <Card
                       key={index}
-                      className="group relative overflow-hidden border rounded-xl hover:shadow-md transition-all duration-200 bg-gradient-to-br from-white to-gray-50/50"
+                      className="group relative overflow-hidden hover:shadow-md transition-all duration-200"
                     >
-                      <div className="flex items-start gap-4 p-4">
+                      <CardContent className="p-4">
+                        <div className="flex items-start gap-4">
                         {/* Product Image */}
                         <div className="relative w-24 h-24 flex-shrink-0">
                           <Image
@@ -922,7 +936,7 @@ export function CreateDropForm() {
                             unoptimized
                           />
                           {gift.price && (
-                            <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                          <div className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-xs px-2 py-1 rounded-full font-medium shadow-sm">
                               {gift.price}
                             </div>
                           )}
@@ -932,17 +946,17 @@ export function CreateDropForm() {
                         <div className="flex-grow min-w-0">
                           <div className="flex items-start justify-between gap-2">
                             <div className="flex-grow min-w-0">
-                              <h4 className="font-semibold text-gray-900 truncate">
+                              <h4 className="font-semibold text-foreground truncate">
                                 {gift.name}
                               </h4>
                               <div className="flex items-center gap-2 mt-1">
                                 {gift.platform && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-primary/10 text-primary">
                                     {gift.platform}
                                   </span>
                                 )}
                                 {gift.price && (
-                                  <span className="text-sm text-green-600 font-medium">
+                                  <span className="text-sm text-primary font-medium">
                                     {gift.price}
                                   </span>
                                 )}
@@ -962,20 +976,22 @@ export function CreateDropForm() {
 
                           {/* AI Description */}
                           {gift.description && (
-                            <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 rounded-xl border border-purple-200/60 shadow-sm">
+                            <Card className="mt-4 bg-primary/5 border-primary/20">
+                          <CardContent className="p-4">
                               {/* Header */}
                               <div className="flex items-center gap-2 mb-3">
-                                <Sparkles className="h-3 w-3 text-purple-600" />
-                                <h5 className="text-xs font-semibold text-purple-700">
+                                                                  <Sparkles className="h-3 w-3 text-primary" />
+                                  <h5 className="text-xs font-semibold text-primary">
                                   Why this gift fits their style
                                 </h5>
                               </div>
 
                               {/* Description */}
-                              <p className="text-sm text-gray-700 leading-relaxed">
-                                {gift.description}
-                              </p>
-                            </div>
+                                                              <p className="text-sm text-foreground/80 leading-relaxed">
+                                  {gift.description}
+                                </p>
+                              </CardContent>
+                            </Card>
                           )}
 
                           {/* Product Link */}
@@ -993,17 +1009,17 @@ export function CreateDropForm() {
                             </div>
                           )}
                         </div>
-                      </div>
+                      </CardContent>
 
                       {/* Hover Effect Overlay */}
                       <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
-                    </div>
+                    </Card>
                   ))}
                   {isMoreAiLoading && (
                     <div className="flex items-center justify-center p-4">
                       <div className="flex items-center gap-3">
-                        <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
-                        <p className="text-sm font-medium text-purple-700">
+                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
+                        <p className="text-sm font-medium text-primary">
                           {loadingMessages[currentLoadingMessageIndex]}
                         </p>
                       </div>
