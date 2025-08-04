@@ -9,9 +9,9 @@ Add the following environment variables to your `.env.local` file:
 ```bash
 # Cloudinary Configuration
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
-NEXT_PUBLIC_CLOUDINARY_API_KEY=your_api_key
-CLOUDINARY_API_SECRET=your_api_secret
 NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=ml_default
+# Only needed for server-side operations (file deletion)
+CLOUDINARY_API_SECRET=your_api_secret
 ```
 
 ## Cloudinary Setup
@@ -20,7 +20,7 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=ml_default
 
 2. **Get Your Credentials**: 
    - Go to your Cloudinary Dashboard
-   - Copy your Cloud Name, API Key, and API Secret
+   - Copy your Cloud Name and API Secret (for server-side operations)
 
 3. **Create an Upload Preset**:
    - Go to Settings > Upload
@@ -30,6 +30,11 @@ NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=ml_default
    - Save the preset name (default: `ml_default`)
 
 ## Features
+
+### Real Progress Tracking
+- Uses Cloudinary's XMLHttpRequest for real upload progress
+- No fake progress bars - shows actual upload status
+- Better user experience with accurate progress feedback
 
 ### Automatic Image Optimization
 - Images are automatically optimized using Cloudinary's URL transformations

@@ -296,22 +296,18 @@ function FileUploader({
     form.clearErrors("gifterMedia");
 
     try {
-      // Simulate progress updates
-      const progressInterval = setInterval(() => {
-        setUploadedFiles((prev) =>
-          prev.map((f) => {
-            if (f.id === fileId && f.progress < 90) {
-              return { ...f, progress: f.progress + Math.random() * 10 };
-            }
-            return f;
-          })
-        );
-      }, 200);
-
-      // Upload to Cloudinary
-      const { url, publicId } = await uploadToCloudinary(fileToUpload, user?.uid || 'anonymous');
-
-      clearInterval(progressInterval);
+      // Upload to Cloudinary with real progress tracking
+      const { url, publicId } = await uploadToCloudinary(
+        fileToUpload, 
+        user?.uid || 'anonymous',
+        (progress) => {
+          setUploadedFiles((prev) =>
+            prev.map((f) =>
+              f.id === fileId ? { ...f, progress } : f
+            )
+          );
+        }
+      );
 
       // Update file status to success
       setUploadedFiles((prev) =>

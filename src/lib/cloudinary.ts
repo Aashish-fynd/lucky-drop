@@ -1,40 +1,60 @@
-import { v2 as cloudinary } from 'cloudinary';
+// Cloudinary configuration and utilities using REST API only
 
-// Configure Cloudinary
-cloudinary.config({
-  cloud_name: process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.NEXT_PUBLIC_CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
-
-export { cloudinary };
-
-// Utility function to upload file to Cloudinary
-export const uploadToCloudinary = async (file: File, userId: string): Promise<{ url: string; publicId: string }> => {
+// Utility function to upload file to Cloudinary with real progress tracking
+export const uploadToCloudinary = (
+  file: File, 
+  userId: string,
+  onProgress?: (progress: number) => void
+): Promise<{ url: string; publicId: string }> => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('upload_preset', process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET || 'ml_default');
     formData.append('folder', `uploads/${userId}`);
 
-    fetch(`https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/auto/upload`, {
-      method: 'POST',
-      body: formData,
-    })
-      .then((response) => response.json())
-      .then((data) => {
-        if (data.error) {
-          reject(new Error(data.error.message));
-        } else {
-          resolve({
-            url: data.secure_url,
-            publicId: data.public_id,
-          });
+    const xhr = new XMLHttpRequest();
+
+    // Track upload progress
+    xhr.upload.addEventListener('progress', (event) => {
+      if (event.lengthComputable && onProgress) {
+        const progress = (event.loaded / event.total) * 100;
+        onProgress(progress);
+      }
+    });
+
+    // Handle response
+    xhr.addEventListener('load', () => {
+      if (xhr.status === 200) {
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.error) {
+            reject(new Error(data.error.message));
+          } else {
+            resolve({
+              url: data.secure_url,
+              publicId: data.public_id,
+            });
+          }
+        } catch (error) {
+          reject(new Error('Failed to parse response'));
         }
-      })
-      .catch((error) => {
-        reject(error);
-      });
+      } else {
+        reject(new Error(`Upload failed with status: ${xhr.status}`));
+      }
+    });
+
+    // Handle errors
+    xhr.addEventListener('error', () => {
+      reject(new Error('Network error occurred'));
+    });
+
+    xhr.addEventListener('abort', () => {
+      reject(new Error('Upload was aborted'));
+    });
+
+    // Start upload
+    xhr.open('POST', `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/auto/upload`);
+    xhr.send(formData);
   });
 };
 
@@ -106,7 +126,7 @@ export const getResponsiveImageUrls = (originalUrl: string) => {
   };
 };
 
-// Utility function to delete file from Cloudinary
+// Utility function to delete file from Cloudinary using REST API
 export const deleteFromCloudinary = async (publicId: string): Promise<void> => {
   try {
     const response = await fetch('/api/cloudinary/delete', {

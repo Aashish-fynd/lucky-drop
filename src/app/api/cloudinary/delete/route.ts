@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { cloudinary } from '@/lib/cloudinary';
 
 export async function POST(request: NextRequest) {
   try {
@@ -12,8 +11,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Delete the file from Cloudinary
-    const result = await cloudinary.uploader.destroy(publicId);
+    // Delete the file from Cloudinary using REST API
+    const timestamp = Math.round(new Date().getTime() / 1000);
+    const signature = generateSignature(publicId, timestamp);
+
+    const formData = new FormData();
+    formData.append('public_id', publicId);
+    formData.append('timestamp', timestamp.toString());
+    formData.append('signature', signature);
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/image/destroy`,
+      {
+        method: 'POST',
+        body: formData,
+      }
+    );
+
+    const result = await response.json();
 
     if (result.result === 'ok') {
       return NextResponse.json({ success: true });
@@ -30,4 +45,11 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
+}
+
+// Generate signature for Cloudinary API
+function generateSignature(publicId: string, timestamp: number): string {
+  const crypto = require('crypto');
+  const params = `public_id=${publicId}&timestamp=${timestamp}${process.env.CLOUDINARY_API_SECRET}`;
+  return crypto.createHash('sha1').update(params).digest('hex');
 }
