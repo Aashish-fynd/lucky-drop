@@ -43,7 +43,8 @@ import {
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import Image from "next/image";
-import { uploadToCloudinary, getOptimizedImageUrl } from "@/lib/cloudinary";
+import { getOptimizedImageUrl } from "@/lib/cloudinary";
+import { uploadToCloudinary, deleteFromCloudinary } from "@/actions/cloudinary";
 import { generateGiftIdeasAction } from "@/actions/ai";
 import {
   Dialog,
@@ -291,18 +292,22 @@ function FileUploader({
     form.clearErrors("gifterMedia");
 
     try {
-      // Upload to Cloudinary with real progress tracking
-      const { url, publicId } = await uploadToCloudinary(
-        fileToUpload, 
-        user?.uid || 'anonymous',
-        (progress) => {
-          setUploadedFiles((prev) =>
-            prev.map((f) =>
-              f.id === fileId ? { ...f, progress } : f
-            )
-          );
-        }
-      );
+      // Simulate progress for server-side upload
+      const progressInterval = setInterval(() => {
+        setUploadedFiles((prev) =>
+          prev.map((f) => {
+            if (f.id === fileId && f.progress < 90) {
+              return { ...f, progress: f.progress + Math.random() * 10 };
+            }
+            return f;
+          })
+        );
+      }, 200);
+
+      // Upload to Cloudinary using server action
+      const { url, publicId } = await uploadToCloudinary(fileToUpload, user?.uid || 'anonymous');
+
+      clearInterval(progressInterval);
 
       // Update file status to success
       setUploadedFiles((prev) =>
@@ -355,13 +360,7 @@ function FileUploader({
     // Delete from Cloudinary if file was successfully uploaded
     if (fileToRemove?.publicId && fileToRemove.status === "success") {
       try {
-        await fetch('/api/cloudinary/delete', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ publicId: fileToRemove.publicId }),
-        });
+        await deleteFromCloudinary(fileToRemove.publicId);
       } catch (error) {
         console.error('Failed to delete file from Cloudinary:', error);
         // Continue with local removal even if Cloudinary deletion fails

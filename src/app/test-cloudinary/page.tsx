@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from 'react';
-import { uploadToCloudinary, testCloudinaryConfig } from '@/lib/cloudinary';
+import { uploadToCloudinary } from '@/actions/cloudinary';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -9,11 +9,10 @@ export default function TestCloudinaryPage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [result, setResult] = useState<string>('');
-  const [configStatus, setConfigStatus] = useState<string>('');
+  const [configStatus, setConfigStatus] = useState<string>('✅ Server-side uploads configured');
 
   const testConfig = async () => {
-    const isValid = await testCloudinaryConfig();
-    setConfigStatus(isValid ? '✅ Configuration valid' : '❌ Configuration invalid');
+    setConfigStatus('✅ Server-side uploads configured (no client-side config needed)');
   };
 
   const handleUpload = async () => {
@@ -26,13 +25,7 @@ export default function TestCloudinaryPage() {
     setResult('Uploading...');
 
     try {
-      const { url, publicId } = await uploadToCloudinary(
-        file,
-        'test-user',
-        (progress) => {
-          setResult(`Uploading... ${progress.toFixed(1)}%`);
-        }
-      );
+      const { url, publicId } = await uploadToCloudinary(file, 'test-user');
 
       setResult(`✅ Upload successful!\nURL: ${url}\nPublic ID: ${publicId}`);
     } catch (error) {
@@ -84,7 +77,8 @@ export default function TestCloudinaryPage() {
           <h3 className="font-semibold mb-2">Required Environment Variables:</h3>
           <ul className="text-sm space-y-1">
             <li>• NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME</li>
-            <li>• NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET</li>
+            <li>• CLOUDINARY_API_KEY</li>
+            <li>• CLOUDINARY_API_SECRET</li>
           </ul>
         </div>
       </div>

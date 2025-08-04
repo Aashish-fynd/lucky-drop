@@ -7,10 +7,9 @@ This project now uses Cloudinary as the primary storage provider for file upload
 Add the following environment variables to your `.env.local` file:
 
 ```bash
-# Cloudinary Configuration
+# Cloudinary Configuration (Server-side uploads)
 NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME=your_cloud_name
-NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET=ml_default
-# Only needed for server-side operations (file deletion)
+CLOUDINARY_API_KEY=your_api_key
 CLOUDINARY_API_SECRET=your_api_secret
 ```
 
@@ -20,27 +19,23 @@ CLOUDINARY_API_SECRET=your_api_secret
 
 2. **Get Your Credentials**: 
    - Go to your Cloudinary Dashboard
-   - Copy your Cloud Name and API Secret (for server-side operations)
+   - Copy your Cloud Name, API Key, and API Secret
 
-3. **Create an Upload Preset** (This is your upload token):
-   - Go to Settings > Upload
-   - Scroll down to "Upload presets"
-   - Click "Add upload preset"
-   - Set signing mode to "**Unsigned**" for client-side uploads
-   - Set folder to "uploads" (optional, for organization)
-   - Save the preset name (e.g., `ml_default`)
-   - **Important**: The preset name acts as your upload token for unsigned uploads
+3. **No Upload Preset Needed**: 
+   - Server-side uploads use your API credentials directly
+   - No need to create upload presets
+   - More secure and reliable than client-side uploads
 
 4. **Test Your Setup**:
    - Visit `/test-cloudinary` in your app to test the upload functionality
-   - This will verify your environment variables and upload preset are working correctly
+   - This will verify your environment variables are working correctly
 
 ## Features
 
-### Real Progress Tracking
-- Uses Cloudinary's XMLHttpRequest for real upload progress
-- No fake progress bars - shows actual upload status
-- Better user experience with accurate progress feedback
+### Server-Side Uploads
+- Secure server-side uploads using Cloudinary SDK
+- No client-side API keys or upload presets needed
+- Better security and reliability
 
 ### Automatic Image Optimization
 - Images are automatically optimized using Cloudinary's URL transformations
@@ -84,15 +79,16 @@ If you have existing files in Firebase Storage:
 ## Troubleshooting
 
 ### Upload Fails
-1. **Check Environment Variables**: Ensure `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` and `NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET` are set
-2. **Verify Upload Preset**: Make sure the preset is set to "Unsigned" mode
+1. **Check Environment Variables**: Ensure `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, and `CLOUDINARY_API_SECRET` are set
+2. **Verify API Credentials**: Make sure your API key and secret are correct
 3. **Test Configuration**: Use the `/test-cloudinary` page to verify your setup
 
 ### Common Errors
-- **"Upload preset not found"**: Check that the preset name matches exactly
-- **"Invalid signature"**: This shouldn't happen with unsigned uploads
+- **"Invalid API key"**: Check that your API key is correct
+- **"Invalid signature"**: Check that your API secret is correct
 - **"Cloud name not found"**: Verify your cloud name is correct
 
 ### Security Notes
-- Upload presets for unsigned uploads are safe to expose in client-side code
-- Only the API secret needs to be kept private (used only for server-side deletion)
+- All API credentials are kept server-side only
+- No client-side exposure of sensitive credentials
+- Server actions provide secure upload endpoints
