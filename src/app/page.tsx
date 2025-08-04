@@ -29,19 +29,19 @@ export default function Home() {
       <Header />
       <main className="flex-1">
         <section className="w-full py-24 md:py-32 lg:py-40 xl:py-56 text-center relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-background to-background -z-10"></div>
-           <div className="absolute top-0 left-0 h-32 w-32 bg-primary/20 rounded-full blur-3xl animate-pulse"></div>
-           <div className="absolute bottom-0 right-0 h-32 w-32 bg-accent/20 rounded-full blur-3xl animate-pulse delay-500"></div>
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-background -z-10"></div>
+           <div className="absolute top-0 left-0 h-32 w-32 bg-primary/10 rounded-full blur-3xl animate-pulse"></div>
+           <div className="absolute bottom-0 right-0 h-32 w-32 bg-primary/10 rounded-full blur-3xl animate-pulse delay-500"></div>
           <div className="container px-4 md:px-6">
             <div className="flex flex-col items-center space-y-6">
-              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary via-primary/70 to-accent">
+                              <h1 className="text-4xl font-bold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl font-headline bg-clip-text text-transparent bg-gradient-to-r from-primary to-primary/60">
                 Send Surprises with Lucky Drop
               </h1>
               <p className="mx-auto max-w-[700px] text-muted-foreground md:text-xl">
                 The fun way to give gifts. Create a drop, share a link, and let your friends discover their surprise!
               </p>
               <div className="space-x-4">
-                <Button asChild size="lg" className="shadow-lg shadow-primary/30 hover:shadow-xl hover:shadow-primary/40 transition-shadow">
+                <Button asChild size="lg" className="shadow-lg hover:shadow-xl transition-shadow">
                   <Link href="/create">Create Your First Drop</Link>
                 </Button>
               </div>

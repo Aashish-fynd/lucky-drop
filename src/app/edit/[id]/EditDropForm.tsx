@@ -168,23 +168,29 @@ function MediaPreview({ type, url }: { type: MediaType; url: string }) {
     );
   } else if (type === "audio") {
     return (
-      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
-        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
-          <Volume2 className="w-6 h-6 text-white" />
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium">Audio Message</p>
-          <p className="text-xs text-gray-500">Click to play</p>
-        </div>
-      </div>
+                    <Card className="border-0 shadow-none bg-muted">
+                <CardContent className="flex items-center gap-3 p-4">
+                  <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+                    <Volume2 className="w-6 h-6 text-primary-foreground" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Audio Message</p>
+                    <p className="text-xs text-muted-foreground">Click to play</p>
+                  </div>
+                </CardContent>
+              </Card>
     );
   } else if (type === "video") {
-    return (
-      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gray-100">
-        <video src={url} controls className="w-full h-full object-cover" />
-      </div>
-    );
-  }
+          return (
+        <Card className="border-0 shadow-none">
+          <CardContent className="p-0">
+            <div className="relative w-full h-48 rounded-lg overflow-hidden bg-muted">
+              <video src={url} controls className="w-full h-full object-cover" />
+            </div>
+          </CardContent>
+        </Card>
+      );
+    }
   return null;
 }
 
