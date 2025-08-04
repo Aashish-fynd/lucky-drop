@@ -1,0 +1,34 @@
+---
+alwaysApply: true
+---
+
+# 🎁 Gift-by-Luck App – Implementation Summary
+
+Gift-by-Luck is a surprise gifting app built with usign Next.js, Shadcn, Tailwind, and Firebase. It allows a gifter (authenticated user) to create a gift drop—a list of 3–5 gift options with predefined actions (e.g., “Send via Amazon”). The recipient accesses the gift via a link or QR code, with no login required, and receives one gift either randomly or by choice.
+
+👥 User Roles:
+Gifter: Creates drops, adds gift actions, and can include extras like status cards, voice/video notes.
+Recipient: Accesses the drop, opens the gift, and enters delivery info if needed.
+
+🧭 Gifter Flow:
+Logs in → Creates drop with title, message, gifts, and mode (random/select)
+Drop saved to Firestore → Unique ID and QR/link generated.
+Can add media (images, videos, audio) to the drop which then will be shown to the recipient as swipeable cards before claiming.
+
+🎉 Recipient Flow:
+Visits link or scans QR → Sees surprise UI
+Gift is revealed with animation → enters name/address if required
+Optional: add selfie/audio reaction
+
+☁️ Functions:
+Gift Logic: Prevents duplicate claims, handles random/selected assignment, saves metadata
+Notifies gifter about fulfillment
+
+🔐 Auth & Access:
+Gifter: Firebase Auth
+Recipient: Anonymous access via unique link
+
+Post-Claim Dashboard:
+Gifter sees drop status, gift details, recipient info, and uploaded reactions
+📣 Notifications:
+Cloud Functions notify gifter via email or push when gift is claimed or fulfilled

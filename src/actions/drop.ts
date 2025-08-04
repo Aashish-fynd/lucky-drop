@@ -36,6 +36,11 @@ export async function createDrop(
     createdAt: serverTimestamp(),
   };
 
+  // Ensure gifterMedia is always an array
+  if (newDropData.gifterMedia && !Array.isArray(newDropData.gifterMedia)) {
+    newDropData.gifterMedia = [newDropData.gifterMedia];
+  }
+
   const docRef = await addDoc(collection(db, "drops"), newDropData);
 
   // Firestore doesn't immediately have the server timestamp, so we add gifts separately
@@ -63,8 +68,14 @@ export async function getDrop(id: string): Promise<GiftDrop | null> {
   const createdAt = (data.createdAt as Timestamp)?.toMillis() || Date.now();
   const recipientOpenedAt = (data.recipientOpenedAt as Timestamp)?.toMillis();
 
+  // Convert old single media format to array format for backward compatibility
+  let processedData = { ...data };
+  if (processedData.gifterMedia && !Array.isArray(processedData.gifterMedia)) {
+    processedData.gifterMedia = [processedData.gifterMedia];
+  }
+
   return {
-    ...data,
+    ...processedData,
     id: docSnap.id,
     createdAt,
     recipientOpenedAt: recipientOpenedAt || undefined,
@@ -79,8 +90,18 @@ export async function getUserDrops(userId: string): Promise<GiftDrop[]> {
     const data = doc.data();
     const createdAt = (data.createdAt as Timestamp)?.toMillis() || Date.now();
     const recipientOpenedAt = (data.recipientOpenedAt as Timestamp)?.toMillis();
+
+    // Convert old single media format to array format for backward compatibility
+    let processedData = { ...data };
+    if (
+      processedData.gifterMedia &&
+      !Array.isArray(processedData.gifterMedia)
+    ) {
+      processedData.gifterMedia = [processedData.gifterMedia];
+    }
+
     drops.push({
-      ...data,
+      ...processedData,
       id: doc.id,
       createdAt,
       recipientOpenedAt: recipientOpenedAt || undefined,
@@ -123,6 +144,29 @@ export async function saveRecipientDetails(
     return { success: true };
   } catch (error) {
     console.error("Error saving details: ", error);
+    return { success: false };
+  }
+}
+
+export async function updateDrop(
+  dropId: string,
+  data: Partial<Omit<GiftDrop, "id" | "createdAt" | "userId" | "status">>
+): Promise<{ success: boolean }> {
+  try {
+    const dropRef = doc(db, "drops", dropId);
+
+    // Convert old single media format to array format if needed
+    let processedData = { ...data };
+    if (data.gifterMedia && !Array.isArray(data.gifterMedia)) {
+      processedData.gifterMedia = [data.gifterMedia];
+    }
+
+    await updateDoc(dropRef, processedData);
+    revalidatePath(`/drop/${dropId}`);
+    revalidatePath("/dashboard");
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating drop: ", error);
     return { success: false };
   }
 }

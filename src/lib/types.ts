@@ -6,16 +6,12 @@ export interface Gift {
   url?: string;
 }
 
-export type DistributionMode = 'random' | 'manual';
+export type DistributionMode = "random" | "manual";
 
 export interface GifterMedia {
-  type: 'audio' | 'video' | 'card';
+  type: "audio" | "video" | "card";
   url: string;
-}
-
-export interface RecipientDetails {
-  name: string;
-  address: string;
+  title?: string;
 }
 
 export interface GiftDrop {
@@ -25,10 +21,15 @@ export interface GiftDrop {
   message: string;
   gifts: Gift[];
   distributionMode: DistributionMode;
-  gifterMedia?: GifterMedia;
+  gifterMedia?: GifterMedia[] | GifterMedia; // Support both array and single media for backward compatibility
   selectedGiftId?: string;
   recipientDetails?: RecipientDetails;
   createdAt: number; // Stored as a Unix timestamp (milliseconds)
-  status: 'draft' | 'live';
+  status: "draft" | "live";
   recipientOpenedAt?: number; // Stored as a Unix timestamp (milliseconds)
+}
+
+export interface RecipientDetails {
+  name: string;
+  address: string;
 }

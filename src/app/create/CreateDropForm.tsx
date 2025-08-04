@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useFieldArray, useForm } from "react-hook-form";
 import * as z from "zod";
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import React, { useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -39,6 +39,8 @@ import {
   Music,
   Video,
   Image as ImageIcon,
+  Keyboard,
+  Volume2,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
@@ -73,13 +75,17 @@ const giftSchema = z.object({
   image: z.string().min(1, "Image URL is required."),
   platform: z.string().optional(),
   url: z.string().url("Must be a valid URL").optional(),
+  price: z.string().optional(),
+  description: z.string().optional(),
 });
 
 const gifterMediaSchema = z
-  .object({
-    type: z.enum(["audio", "video", "card"]).optional(),
-    url: z.string().url("Must be a valid URL").optional(),
-  })
+  .array(
+    z.object({
+      type: z.enum(["audio", "video", "card"]),
+      url: z.string().url("Must be a valid URL"),
+    })
+  )
   .optional();
 
 const formSchema = z
@@ -103,15 +109,15 @@ const formSchema = z
   })
   .refine(
     (data) => {
-      // If either url or type has a value, both must have a value.
-      if (data.gifterMedia?.url || data.gifterMedia?.type) {
-        return !!data.gifterMedia.url && !!data.gifterMedia.type;
+      // If gifterMedia array exists, it should not be empty
+      if (data.gifterMedia && data.gifterMedia.length > 0) {
+        return data.gifterMedia.every((media) => media.url && media.type);
       }
       return true;
     },
     {
       // This message will appear under the file uploader if validation fails.
-      message: "Media is required.",
+      message: "All media items must have valid URLs and types.",
       path: ["gifterMedia"], // Pointing error to the media object itself
     }
   );
@@ -156,28 +162,32 @@ function getFileStatusText(uploadedFile: UploadedFile): string {
 function MediaPreview({ type, url }: { type: MediaType; url: string }) {
   if (type === "card") {
     return (
-      <div className="relative w-full aspect-video">
+      <div className="relative w-full h-48 rounded-lg overflow-hidden">
         <Image
           src={url}
-          alt="Uploaded Card Preview"
+          alt="Uploaded card"
           fill
-          className="rounded-md object-contain"
-          data-ai-hint="greeting card"
+          className="object-cover"
+          unoptimized
         />
       </div>
     );
-  }
-  if (type === "audio") {
+  } else if (type === "audio") {
     return (
-      <div className="w-full max-w-md mx-auto">
-        <audio controls src={url} className="w-full" />
+      <div className="flex items-center gap-3 p-4 bg-gray-50 rounded-lg">
+        <div className="w-12 h-12 bg-primary rounded-full flex items-center justify-center">
+          <Volume2 className="w-6 h-6 text-white" />
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium">Audio Message</p>
+          <p className="text-xs text-gray-500">Click to play</p>
+        </div>
       </div>
     );
-  }
-  if (type === "video") {
+  } else if (type === "video") {
     return (
-      <div className="relative w-full aspect-video">
-        <video controls src={url} className="w-full h-full rounded-md" />
+      <div className="relative w-full h-48 rounded-lg overflow-hidden bg-gray-100">
+        <video src={url} controls className="w-full h-full object-cover" />
       </div>
     );
   }
@@ -188,7 +198,7 @@ function FileUploader({
   onUploadComplete,
   form,
 }: {
-  onUploadComplete: (urls: string[], types: MediaType[]) => void;
+  onUploadComplete: (media: { url: string; type: MediaType }[]) => void;
   form: any;
 }) {
   const { user } = useAuth();
@@ -333,16 +343,16 @@ function FileUploader({
         const successfulFiles = prev.filter(
           (f) => f.status === "success" && f.url && f.type
         );
-        const urls = successfulFiles.map((f) => f.url!);
-        const types = successfulFiles.map((f) => f.type!);
+        const media = successfulFiles.map((f) => ({
+          url: f.url!,
+          type: f.type!,
+        }));
 
-        if (urls.length > 0) {
-          // For now, we'll just use the first file for the form
-          form.setValue("gifterMedia.url", urls[0], { shouldValidate: true });
-          form.setValue("gifterMedia.type", types[0], { shouldValidate: true });
+        if (media.length > 0) {
+          form.setValue("gifterMedia", media, { shouldValidate: true });
         }
 
-        onUploadComplete(urls, types);
+        onUploadComplete(media);
         return prev;
       });
     }, 100);
@@ -356,16 +366,16 @@ function FileUploader({
         (f) => f.status === "success" && f.url && f.type
       );
       if (successfulFiles.length === 0) {
-        form.setValue("gifterMedia.url", undefined);
-        form.setValue("gifterMedia.type", undefined);
+        form.setValue("gifterMedia", [], { shouldValidate: true });
         form.trigger("gifterMedia");
-        onUploadComplete([], []);
+        onUploadComplete([]);
       } else {
-        const urls = successfulFiles.map((f) => f.url!);
-        const types = successfulFiles.map((f) => f.type!);
-        form.setValue("gifterMedia.url", urls[0], { shouldValidate: true });
-        form.setValue("gifterMedia.type", types[0], { shouldValidate: true });
-        onUploadComplete(urls, types);
+        const media = successfulFiles.map((f) => ({
+          url: f.url!,
+          type: f.type!,
+        }));
+        form.setValue("gifterMedia", media, { shouldValidate: true });
+        onUploadComplete(media);
       }
       return filtered;
     });
@@ -567,6 +577,66 @@ export function CreateDropForm() {
   const [selectedSuggestions, setSelectedSuggestions] = useState<Set<number>>(
     new Set()
   );
+  // Loading messages for gift generation
+  const loadingMessages = [
+    "🔍 Searching for the perfect gifts...",
+    "🤖 AI is analyzing your preferences...",
+    "🛍️ Browsing through thousands of products...",
+    "✨ Curating personalized recommendations...",
+    "🎁 Finding gifts that match their style...",
+    "💡 Generating thoughtful suggestions...",
+    "🌟 Almost ready with amazing ideas...",
+  ];
+  const [currentLoadingMessageIndex, setCurrentLoadingMessageIndex] =
+    useState(0);
+
+  // Example prompts for cycling
+  const examplePrompts = [
+    "My friend loves hiking, camping, and outdoor adventures. They're always looking for new gear and love exploring nature trails.",
+    "My sister is into yoga, sustainable living, and loves trying new healthy recipes. She's passionate about wellness and mindfulness.",
+    "My dad enjoys woodworking, classic rock music, and craft beer. He loves working with his hands and has a workshop in the garage.",
+    "My colleague is passionate about photography, travel, and cooking. They love trying new cuisines and documenting their adventures.",
+  ];
+  const [currentExampleIndex, setCurrentExampleIndex] = useState(0);
+
+  const [isTransitioning, setIsTransitioning] = useState(false);
+
+  // Auto-cycle placeholder every 3 seconds, but only if user hasn't typed anything
+  React.useEffect(() => {
+    if (aiPrompt.trim() === "") {
+      const interval = setInterval(() => {
+        setIsTransitioning(true);
+        setTimeout(() => {
+          setCurrentExampleIndex((prev) => (prev + 1) % examplePrompts.length);
+          setIsTransitioning(false);
+        }, 150);
+      }, 3000);
+
+      return () => clearInterval(interval);
+    }
+  }, [aiPrompt]);
+
+  // Cycle through loading messages when AI is generating
+  React.useEffect(() => {
+    if (isAiLoading || isMoreAiLoading) {
+      const messageInterval = setInterval(() => {
+        setCurrentLoadingMessageIndex(
+          (prev) => (prev + 1) % loadingMessages.length
+        );
+      }, 2000);
+
+      return () => {
+        clearInterval(messageInterval);
+      };
+    }
+  }, [isAiLoading, isMoreAiLoading]);
+
+  const handleTabKey = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Tab" && !e.shiftKey) {
+      e.preventDefault();
+      setAiPrompt(examplePrompts[currentExampleIndex]);
+    }
+  };
 
   const form = useForm<CreateDropFormValues>({
     resolver: zodResolver(formSchema),
@@ -575,10 +645,7 @@ export function CreateDropForm() {
       message: "",
       gifts: [],
       distributionMode: "random",
-      gifterMedia: {
-        url: undefined,
-        type: undefined,
-      },
+      gifterMedia: [],
     },
   });
 
@@ -617,9 +684,17 @@ export function CreateDropForm() {
         if (gifts && gifts.length > 0) {
           if (isGeneratingMore) {
             setAiSuggestions((prev) => [...(prev || []), ...gifts]);
+            toast({
+              title: "More gifts generated!",
+              description: `Added ${gifts.length} new gift ideas to your suggestions.`,
+            });
           } else {
             setAiSuggestions(gifts);
             setSelectedSuggestions(new Set());
+            toast({
+              title: "Gift ideas ready!",
+              description: `Found ${gifts.length} perfect gift suggestions for you.`,
+            });
           }
           setIsSuggestionsDialogOpen(true);
         } else {
@@ -690,7 +765,7 @@ export function CreateDropForm() {
     setIsLoading(true);
     try {
       const finalData = { ...data };
-      if (!finalData.gifterMedia?.url || !finalData.gifterMedia?.type) {
+      if (!finalData.gifterMedia || finalData.gifterMedia.length === 0) {
         delete finalData.gifterMedia;
       }
       const { id } = await createDrop(finalData as any, user.uid);
@@ -713,55 +788,108 @@ export function CreateDropForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Sparkles className="text-primary" /> AI Gift Suggestions
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <Alert>
-              <Sparkles className="h-4 w-4" />
-              <AlertTitle>How it works</AlertTitle>
-              <AlertDescription>
-                Describe the person you're giving a gift to, and our AI will
-                suggest some real gift ideas from popular online stores.
-              </AlertDescription>
-            </Alert>
-            <Textarea
-              placeholder="e.g., My friend loves hiking, reading fantasy novels, and is a big fan of spicy food..."
-              value={aiPrompt}
-              onChange={(e) => setAiPrompt(e.target.value)}
-              rows={4}
-            />
-            <div className="flex flex-col sm:flex-row gap-2">
+        {/* Modern AI Gift Suggestions Section */}
+        <div className="bg-white rounded-2xl p-8 shadow-sm border border-gray-200">
+          {/* Header */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
+              Hi there,{" "}
+              <span className="bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
+                {user?.displayName || "Friend"}
+              </span>
+            </h2>
+            <h3 className="text-3xl font-bold text-gray-900 mb-2">
+              What gift would you{" "}
+              <span className="bg-gradient-to-r from-purple-600 to-purple-400 bg-clip-text text-transparent">
+                like to find?
+              </span>
+            </h3>
+            <p className="text-gray-600 text-sm">
+              Describe the person you're giving a gift to, and our AI will
+              suggest real gift ideas from popular online stores
+            </p>
+          </div>
+
+          {/* Input Area */}
+          <div className="relative">
+            <div className="bg-white rounded-xl border-2 border-purple-200 shadow-sm p-4">
+              <div className="relative">
+                <Textarea
+                  placeholder={`${examplePrompts[currentExampleIndex]} `}
+                  value={aiPrompt}
+                  onChange={(e) => setAiPrompt(e.target.value)}
+                  onKeyDown={handleTabKey}
+                  rows={3}
+                  className={`!border-0 !p-0 resize-none !focus:ring-0 !focus:border-0 text-sm placeholder:text-gray-400 !outline-none !ring-0 !ring-offset-0 rounded-none pr-12 ${
+                    isTransitioning
+                      ? "transform translate-y-1 opacity-0 transition-all duration-150 ease-out"
+                      : "transform -translate-y-1 opacity-100 transition-all duration-300 ease-in"
+                  }`}
+                />
+              </div>
+
+              {aiPrompt.trim() === "" && (
+                <div className="flex">
+                  <span className="inline-flex items-center gap-1 px-1 py-0.5 bg-purple-50 text-purple-600 text-xs font-medium rounded border border-purple-100 opacity-80 transition-all duration-300">
+                    <Keyboard className="w-3 h-3" />
+                    Press tab to use the example
+                  </span>
+                </div>
+              )}
+
+              {/* Input Controls */}
+              <div className="flex items-center justify-between border-gray-100">
+                <div className="flex items-center gap-4">
+                  <span className="text-xs text-gray-400">
+                    {aiPrompt.length}/1000
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-4">
+                  <div
+                    className={`flex items-center gap-2 transition-all duration-300 ${
+                      isAiLoading
+                        ? "opacity-100"
+                        : "opacity-0 pointer-events-none"
+                    }`}
+                  >
+                    <Loader2 className="w-3 h-3 animate-spin text-purple-600" />
+                    <span className="text-xs text-purple-600">
+                      {loadingMessages[currentLoadingMessageIndex]}
+                    </span>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => handleGenerateGifts(false)}
+                    disabled={isAiLoading}
+                    className={`w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 p-0 flex items-center justify-center transition-all duration-300 ${
+                      isAiLoading
+                        ? "opacity-0 pointer-events-none"
+                        : "opacity-100"
+                    }`}
+                  >
+                    <Sparkles className="w-5 h-5 text-white" />
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* View Suggestions Button */}
+          {aiSuggestions && aiSuggestions.length > 0 && (
+            <div className="mt-4">
               <Button
                 type="button"
-                onClick={() => handleGenerateGifts(false)}
-                disabled={isAiLoading}
-                className="w-full"
+                variant="outline"
+                onClick={() => setIsSuggestionsDialogOpen(true)}
+                className="w-full border-purple-200 text-purple-700 hover:bg-purple-50 transition-colors hover:text-purple-600"
               >
-                {isAiLoading ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-2 h-4 w-4" />
-                )}
-                Generate Gift Ideas
+                <Eye className="mr-2 h-4 w-4" />
+                View Suggestions ({aiSuggestions.length})
               </Button>
-              {aiSuggestions && aiSuggestions.length > 0 && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsSuggestionsDialogOpen(true)}
-                  className="w-full"
-                >
-                  <Eye className="mr-2 h-4 w-4" /> View Suggestions (
-                  {aiSuggestions.length})
-                </Button>
-              )}
             </div>
-          </CardContent>
-        </Card>
+          )}
+        </div>
 
         {aiSuggestions && (
           <Dialog
@@ -776,51 +904,110 @@ export function CreateDropForm() {
                   like and add them to your drop.
                 </DialogDescription>
               </DialogHeader>
-              <ScrollArea className="h-[50vh] pr-6">
+              <ScrollArea className="h-[50vh]">
                 <div className="space-y-4">
                   {aiSuggestions.map((gift, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-4 p-4 border rounded-lg"
+                      className="group relative overflow-hidden border rounded-xl hover:shadow-md transition-all duration-200 bg-gradient-to-br from-white to-gray-50/50"
                     >
-                      <div className="relative w-24 h-24 flex-shrink-0">
-                        <Image
-                          src={gift.image || "https://placehold.co/400.png"}
-                          alt={gift.name}
-                          fill
-                          sizes="96px"
-                          className="object-cover rounded-md"
-                          unoptimized
-                        />
+                      <div className="flex items-start gap-4 p-4">
+                        {/* Product Image */}
+                        <div className="relative w-24 h-24 flex-shrink-0">
+                          <Image
+                            src={gift.image || "https://placehold.co/400.png"}
+                            alt={gift.name}
+                            fill
+                            sizes="96px"
+                            className="object-cover rounded-lg shadow-sm"
+                            unoptimized
+                          />
+                          {gift.price && (
+                            <div className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                              {gift.price}
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Product Details */}
+                        <div className="flex-grow min-w-0">
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-grow min-w-0">
+                              <h4 className="font-semibold text-gray-900 truncate">
+                                {gift.name}
+                              </h4>
+                              <div className="flex items-center gap-2 mt-1">
+                                {gift.platform && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                    {gift.platform}
+                                  </span>
+                                )}
+                                {gift.price && (
+                                  <span className="text-sm text-green-600 font-medium">
+                                    {gift.price}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Checkbox */}
+                            <Checkbox
+                              checked={selectedSuggestions.has(index)}
+                              onCheckedChange={() =>
+                                handleSuggestionToggle(index)
+                              }
+                              id={`suggestion-${index}`}
+                              className="h-5 w-5 mt-1"
+                            />
+                          </div>
+
+                          {/* AI Description */}
+                          {gift.description && (
+                            <div className="mt-4 p-4 bg-gradient-to-br from-purple-50 via-blue-50 to-indigo-50 rounded-xl border border-purple-200/60 shadow-sm">
+                              {/* Header */}
+                              <div className="flex items-center gap-2 mb-3">
+                                <Sparkles className="h-3 w-3 text-purple-600" />
+                                <h5 className="text-xs font-semibold text-purple-700">
+                                  Why this gift fits their style
+                                </h5>
+                              </div>
+
+                              {/* Description */}
+                              <p className="text-sm text-gray-700 leading-relaxed">
+                                {gift.description}
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Product Link */}
+                          {gift.url && (
+                            <div className="mt-3">
+                              <a
+                                href={gift.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-sm text-primary hover:text-primary/80 hover:underline transition-colors"
+                              >
+                                <ExternalLink className="h-3 w-3" />
+                                View Product Details
+                              </a>
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex-grow">
-                        <h4 className="font-semibold">{gift.name}</h4>
-                        <p className="text-sm text-muted-foreground">
-                          {gift.platform}
-                        </p>
-                        {gift.url && (
-                          <a
-                            href={gift.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm text-primary hover:underline flex items-center gap-1 mt-1"
-                          >
-                            View Product <ExternalLink className="h-3 w-3" />
-                          </a>
-                        )}
-                      </div>
-                      <Checkbox
-                        checked={selectedSuggestions.has(index)}
-                        onCheckedChange={() => handleSuggestionToggle(index)}
-                        id={`suggestion-${index}`}
-                        className="h-6 w-6"
-                      />
+
+                      {/* Hover Effect Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none" />
                     </div>
                   ))}
                   {isMoreAiLoading && (
                     <div className="flex items-center justify-center p-4">
-                      <Loader2 className="mr-2 h-6 w-6 animate-spin" />
-                      <p>Getting more ideas...</p>
+                      <div className="flex items-center gap-3">
+                        <Loader2 className="w-5 h-5 animate-spin text-purple-600" />
+                        <p className="text-sm font-medium text-purple-700">
+                          {loadingMessages[currentLoadingMessageIndex]}
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -913,20 +1100,10 @@ export function CreateDropForm() {
           <CardContent>
             <FileUploader
               form={form}
-              onUploadComplete={(urls, types) => {
-                if (urls.length > 0 && types.length > 0) {
-                  // For now, just use the first uploaded file
-                  form.setValue("gifterMedia.url", urls[0], {
-                    shouldValidate: true,
-                  });
-                  form.setValue("gifterMedia.type", types[0], {
-                    shouldValidate: true,
-                  });
-                } else {
-                  form.setValue("gifterMedia.url", undefined);
-                  form.setValue("gifterMedia.type", undefined);
-                  form.trigger("gifterMedia"); // trigger validation after clearing
-                }
+              onUploadComplete={(media) => {
+                form.setValue("gifterMedia", media, {
+                  shouldValidate: true,
+                });
               }}
             />
             <FormField
@@ -1000,6 +1177,19 @@ export function CreateDropForm() {
                         </FormItem>
                       )}
                     />
+                    <FormField
+                      control={form.control}
+                      name={`gifts.${index}.price`}
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Price (Optional)</FormLabel>
+                          <FormControl>
+                            <Input placeholder="e.g., $29.99" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
                   </div>
                   <div className="w-32 h-32 md:w-40 md:h-40 flex-shrink-0 relative">
                     <Image
@@ -1051,6 +1241,8 @@ export function CreateDropForm() {
                     image: "https://placehold.co/600x400.png",
                     platform: "",
                     url: "",
+                    price: "",
+                    description: "",
                   })
                 }
               >
